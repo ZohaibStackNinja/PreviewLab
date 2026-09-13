@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "mimosa-finding-history/v1",
+  "runId": "20260912T195955391Z-1112-c8e12286be54",
+  "runStatus": "inconclusive",
+  "errors": [
+    "baseline-read:next-env.d.ts: baseline_snapshot_unreadable: file is missing from task baseline",
+    "scan:components/Workspace.tsx: scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+    "scan:app/project/[projectId]/[platform]/page.tsx: scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+    "scan:components/ShareComments.tsx: scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+    "scan:app/share/[token]/page.tsx: scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+    "scan:lib/db.ts: scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+    "scan:app/not-found.tsx: scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+    "scan:components/previews/DeviceFrame.tsx: scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+    "scan:scripts/make_test_png.py: scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+    "scan:scripts/e2e_verify.py: scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+    "scan:next-env.d.ts: scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT"
+  ],
+  "target": ".",
+  "revision": null,
+  "diffHash": "7a4442510d330141ff99f4df887bad155d5e5fb2f64cdab47e343b647b5cdd45",
+  "rulesVersion": "unavailable",
+  "recordedAt": "2026-09-12T19:59:55.391Z",
+  "timing": {
+    "startedAt": "2026-09-12T19:59:52.326Z",
+    "completedAt": "2026-09-12T19:59:55.391Z",
+    "durationMs": 3065
+  },
+  "tokens": {
+    "input": 0,
+    "output": 0,
+    "total": 0,
+    "modelCalls": 0,
+    "measurement": "known-zero"
+  },
+  "findings": {
+    "total": 0,
+    "bySeverity": {},
+    "byStatus": {}
+  },
+  "coverage": {
+    "status": "partial",
+    "reasonCounts": {
+      "baseline_snapshot_unreadable": 1,
+      "scanner_failed": 10,
+      "project_check_failed": 11
+    }
+  },
+  "evidenceBoundary": "static_only",
+  "immutableReport": ".mimosa/reports/task-review-sess_20cd69dd-8669-4798-a4ef-904a911ab0cd-20260912T195955391Z-1112-c8e12286be54.json"
+}

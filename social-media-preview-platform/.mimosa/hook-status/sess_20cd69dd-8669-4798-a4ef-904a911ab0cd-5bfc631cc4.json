@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "mimosa-hook-status/v1",
+  "recordedAt": "2026-09-12T22:07:19.385Z",
+  "sessionId": "sess_20cd69dd-8669-4798-a4ef-904a911ab0cd",
+  "event": "PostToolUse",
+  "toolName": "Edit",
+  "file": "C:\\Users\\user\\.zcode\\cli\\memories\\projects\\platform-review-44edcf6df80d0a03\\memory\\social-media-preview-platform-app.md",
+  "outcome": "clear",
+  "coverage": "complete",
+  "findingCount": 0,
+  "durationMs": 8,
+  "hostState": "hook_complete",
+  "reportHint": ".mimosa/reports/"
+}

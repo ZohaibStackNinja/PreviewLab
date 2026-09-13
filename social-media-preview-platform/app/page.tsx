@@ -1,0 +1,80 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { api, postJson, ApiError } from '@/lib/client';
+import type { ProjectSummary } from '@/lib/types';
+import { DEFAULT_PLATFORM } from '@/lib/platforms';
+
+/**
+ * No landing page: the application opens directly into the preview
+ * workspace. This bootstrap ensures an anonymous owner session exists,
+ * picks the most recent project (creating one on first visit) and enters
+ * its workspace.
+ */
+export default function BootstrapPage() {
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        await api('/api/session', { method: 'POST' });
+        let { projects } = await api<{ projects: ProjectSummary[] }>('/api/projects');
+        if (projects.length === 0) {
+          const { project } = await postJson<{ project: ProjectSummary }>('/api/projects', {
+            title: 'Untitled project',
+          });
+          projects = [project];
+        }
+        if (cancelled) return;
+        const latest = projects[0];
+        router.replace(`/project/${latest.id}/${latest.lastPlatform || DEFAULT_PLATFORM}`);
+      } catch (e) {
+        if (!cancelled)
+          setError(
+            e instanceof ApiError ? e.message : 'Could not open the workspace. Please try again.',
+          );
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
+
+  return (
+    <main
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'var(--surface)',
+      }}
+    >
+      <div style={{ textAlign: 'center' }}>
+        <span
+          className="brand-mark"
+          aria-hidden="true"
+          style={{ width: 44, height: 44, borderRadius: 13, margin: '0 auto 14px', display: 'flex' }}
+        />
+        <p style={{ fontWeight: 700, fontSize: 16, color: 'var(--text)' }}>Prevu</p>
+        {error ? (
+          <>
+            <p className="field-error" role="alert" style={{ justifyContent: 'center', marginTop: 8 }}>
+              {error}
+            </p>
+            <button className="btn btn-primary btn-sm" style={{ marginTop: 12 }} onClick={() => router.replace('/')}>
+              Retry
+            </button>
+          </>
+        ) : (
+          <p style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 4, display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center' }}>
+            <span className="spinner" aria-hidden="true" /> Opening your workspace…
+          </p>
+        )}
+      </div>
+    </main>
+  );
+}

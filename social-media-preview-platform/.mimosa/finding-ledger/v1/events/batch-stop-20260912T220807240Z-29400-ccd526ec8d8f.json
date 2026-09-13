@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "mimosa-finding-ledger-batch/v1",
+  "batchId": "stop-20260912T220807240Z-29400-ccd526ec8d8f",
+  "runId": "20260912T220807240Z-29400-ccd526ec8d8f",
+  "runStatus": "completed",
+  "coverage": {
+    "status": "complete",
+    "reasons": []
+  },
+  "source": {
+    "component": "zcode-hook",
+    "operationId": "Stop"
+  },
+  "revision": null,
+  "diffHash": "98eaee4828742f8043acc48d79301d24fbf351dbbfc5fe0366b18b9c55b5fa8f",
+  "rulesVersion": "unavailable",
+  "sessionHash": "5bfc631cc449e0904581b4d12491211f9b0e37152ff6fa41ea53576d87b1e477",
+  "reportRef": ".mimosa/reports/task-review-sess_20cd69dd-8669-4798-a4ef-904a911ab0cd-20260912T220807240Z-29400-ccd526ec8d8f.json",
+  "events": [],
+  "observedFindingIds": [],
+  "verifiedFiles": [
+    {
+      "file": "components/previews/InstagramPreview.tsx",
+      "direct": "complete",
+      "projectContext": "partial"
+    }
+  ],
+  "recordedAt": "2026-09-12T22:08:07.954Z"
+}
