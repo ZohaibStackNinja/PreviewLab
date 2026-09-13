@@ -1,0 +1,47 @@
+import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
+import { getServerSession } from "@/lib/auth";
+import { findAsset, findProject, listVariants } from "@/lib/db";
+import { toVariantView } from "@/lib/serialize";
+import { OverviewGrid } from "@/components/OverviewGrid";
+
+export const dynamic = "force-dynamic";
+
+/** All-platforms overview: the active creative in every context at once. */
+export default async function OverviewPage({
+  params,
+}: {
+  params: { projectId: string };
+}) {
+  const session = getServerSession();
+  if (!session) redirect("/");
+
+  const project = findProject(params.projectId);
+  if (!project || project.ownerSessionId !== session.id) notFound();
+  const variants = listVariants(project.id).map((v) => toVariantView(v, findAsset(v.assetId)));
+
+  return (
+    <div className="subpage">
+      <header className="subpage-topbar">
+        <span className="brand">
+          <span className="brand-mark" aria-hidden="true" />
+          Preview Lab
+        </span>
+        <span className="topbar-divider" aria-hidden="true" />
+        <span className="subpage-project truncate">{project.title}</span>
+        <span className="topbar-spacer" />
+        <Link
+          className="btn btn-secondary btn-sm"
+          href={`/project/${project.id}/${project.lastPlatform}`}
+        >
+          Back to workspace
+        </Link>
+      </header>
+      <OverviewGrid
+        project={project}
+        variants={variants}
+        activeVariantId={project.activeVariantId}
+      />
+    </div>
+  );
+}

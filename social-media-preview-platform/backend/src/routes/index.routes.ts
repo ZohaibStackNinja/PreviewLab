@@ -1,0 +1,116 @@
+import { Router } from "express";
+import { asyncHandler, validate } from "../middleware/validate.middleware";
+import * as controllers from "../controllers/index.controller";
+import { createProjectSchema, updateProjectSchema } from "../validators/project.validator";
+import { createShareSchema } from "../validators/share.validator";
+import { createCommentSchema } from "../validators/comment.validator";
+import { imageUpload } from "../middleware/upload.middleware";
+import {
+  projectIdParam,
+  projectParamsWithKind,
+  shareIdParam,
+  variantIdParam,
+} from "../validators/common.validator";
+import { updateVariantSchema } from "../validators/variant.validator";
+
+/**
+ * REST surface — mirrors the previous Next.js API routes 1:1 so the
+ * frontend client keeps the same paths. Route → controller → service →
+ * model; zod validators run before controllers.
+ */
+export function buildApiRouter(): Router {
+  const router = Router();
+
+  // ---- health ----
+  router.get("/health", (_req, res) => {
+    res.json({
+      status: "ok",
+      service: "preview-lab-api",
+      time: new Date().toISOString(),
+    });
+  });
+
+  // ---- session (anonymous owner identity) ----
+  router.post("/session", asyncHandler(controllers.createSession));
+  router.get("/session", asyncHandler(controllers.probeSession));
+
+  // ---- projects ----
+  router
+    .route("/projects")
+    .get(asyncHandler(controllers.listProjects))
+    .post(validate(createProjectSchema), asyncHandler(controllers.createProject));
+
+  router
+    .route("/projects/:projectId")
+    .get(validate(projectIdParam), asyncHandler(controllers.getProjectDetail))
+    .patch(
+      validate(projectIdParam),
+      validate(updateProjectSchema),
+      asyncHandler(controllers.updateProject),
+    )
+    .delete(validate(projectIdParam), asyncHandler(controllers.deleteProject));
+
+  // ---- brand identity assets ----
+  router
+    .route("/projects/:projectId/brand/:kind")
+    .get(validate(projectParamsWithKind), asyncHandler(controllers.getBrandAsset))
+    .post(imageUpload.single("file"), asyncHandler(controllers.uploadBrandAsset))
+    .delete(validate(projectParamsWithKind), asyncHandler(controllers.clearBrandAsset));
+
+  // ---- creative variants ----
+  router
+    .route("/projects/:projectId/variants")
+    .post(imageUpload.single("file"), asyncHandler(controllers.createVariant));
+
+  router
+    .route("/variants/:variantId")
+    .get(validate(variantIdParam), asyncHandler(controllers.getVariant))
+    .patch(
+      validate(variantIdParam),
+      validate(updateVariantSchema),
+      asyncHandler(controllers.updateVariant),
+    )
+    .delete(validate(variantIdParam), asyncHandler(controllers.deleteVariant));
+
+  router
+    .route("/variants/:variantId/replace")
+    .post(imageUpload.single("file"), asyncHandler(controllers.replaceVariantImage));
+
+  router.get("/assets/:assetId", asyncHandler(controllers.getAsset));
+
+  // ---- share links ----
+  router
+    .route("/projects/:projectId/shares")
+    .get(validate(projectIdParam), asyncHandler(controllers.listShares))
+    .post(
+      validate(projectIdParam),
+      validate(createShareSchema),
+      asyncHandler(controllers.createShare),
+    );
+
+  // ---- public token access (anonymous reviewers) ----
+  router.get("/shares/resolved/:token", asyncHandler(controllers.resolveShare));
+  router
+    .route("/shares/token/:token/comments")
+    .get(asyncHandler(controllers.listPublicComments))
+    .post(validate(createCommentSchema), asyncHandler(controllers.createPublicComment));
+
+  router
+    .route("/shares/:shareId/comments")
+    .get(validate(shareIdParam), asyncHandler(controllers.listOwnerComments))
+    .post(
+      validate(shareIdParam),
+      validate(createCommentSchema),
+      asyncHandler(controllers.createOwnerComment),
+    );
+
+  router
+    .route("/shares/:shareId")
+    .get(validate(shareIdParam), asyncHandler(controllers.getShareDetail));
+
+  router
+    .route("/shares/:shareId/revoke")
+    .post(validate(shareIdParam), asyncHandler(controllers.revokeShare));
+
+  return router;
+}

@@ -1,0 +1,47 @@
+import { describe, expect, it } from "vitest";
+import { generateToken, hashSessionToken, hashShareToken, shareState } from "../src/utils/token";
+
+describe("token utilities", () => {
+  it("generates high-entropy opaque tokens", () => {
+    const a = generateToken(24);
+    const b = generateToken(24);
+    expect(a).toHaveLength(32); // 24 bytes → base64url 32 chars
+    expect(a).not.toEqual(b);
+    expect(a).toMatch(/^[A-Za-z0-9_-]+$/); // URL-safe
+  });
+
+  it("hashes tokens deterministically with the keyed secret", () => {
+    const h1 = hashShareToken("token-value");
+    const h2 = hashShareToken("token-value");
+    const other = hashShareToken("token-value-2");
+    expect(h1).toEqual(h2);
+    expect(h1).not.toEqual(other);
+    expect(h1).toMatch(/^[a-f0-9]{64}$/);
+    expect(hashSessionToken("t")).toMatch(/^[a-f0-9]{64}$/);
+  });
+});
+
+describe("shareState lifecycle (SHR-010)", () => {
+  const now = new Date("2026-09-13T12:00:00Z");
+
+  it("is ACTIVE before expiry and not revoked", () => {
+    expect(
+      shareState({ expiresAt: new Date("2026-09-13T12:00:01Z"), revokedAt: null }, now),
+    ).toBe("ACTIVE");
+  });
+
+  it("is EXPIRED at or after expiry", () => {
+    expect(
+      shareState({ expiresAt: new Date("2026-09-13T12:00:00Z"), revokedAt: null }, now),
+    ).toBe("EXPIRED");
+  });
+
+  it("is REVOKED even when the expiry has not passed", () => {
+    expect(
+      shareState(
+        { expiresAt: new Date("2026-09-20T12:00:00Z"), revokedAt: new Date("2026-09-13T00:00:00Z") },
+        now,
+      ),
+    ).toBe("REVOKED");
+  });
+});

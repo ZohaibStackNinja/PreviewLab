@@ -1,0 +1,54 @@
+import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
+import { getServerSession } from "@/lib/auth";
+import { findAsset, findProject, listVariants } from "@/lib/db";
+import { toVariantView } from "@/lib/serialize";
+import { isPlatformId } from "@/lib/platforms";
+import { CompareView } from "@/components/CompareView";
+
+export const dynamic = "force-dynamic";
+
+interface PageProps {
+  params: { projectId: string };
+  searchParams: { left?: string; right?: string };
+}
+
+/** Side-by-side comparison of the creative in two platform contexts. */
+export default async function ComparePage({ params, searchParams }: PageProps) {
+  const session = getServerSession();
+  if (!session) redirect("/");
+
+  const project = findProject(params.projectId);
+  if (!project || project.ownerSessionId !== session.id) notFound();
+  const variants = listVariants(project.id).map((v) => toVariantView(v, findAsset(v.assetId)));
+
+  const left = isPlatformId(searchParams.left || "") ? (searchParams.left as never) : "instagram";
+  const right = isPlatformId(searchParams.right || "") ? (searchParams.right as never) : "facebook";
+
+  return (
+    <div className="subpage">
+      <header className="subpage-topbar">
+        <span className="brand">
+          <span className="brand-mark" aria-hidden="true" />
+          Preview Lab
+        </span>
+        <span className="topbar-divider" aria-hidden="true" />
+        <span className="subpage-project truncate">{project.title}</span>
+        <span className="topbar-spacer" />
+        <Link
+          className="btn btn-secondary btn-sm"
+          href={`/project/${project.id}/${project.lastPlatform}`}
+        >
+          Back to workspace
+        </Link>
+      </header>
+      <CompareView
+        project={project}
+        variants={variants}
+        activeVariantId={project.activeVariantId}
+        initialLeft={left}
+        initialRight={right}
+      />
+    </div>
+  );
+}
