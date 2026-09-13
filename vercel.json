@@ -1,0 +1,7 @@
+{
+  "framework": "nextjs",
+  "installCommand": "npm install --prefix social-media-preview-platform",
+  "buildCommand": "npm run build --prefix social-media-preview-platform",
+  "devCommand": "npm run dev --prefix social-media-preview-platform",
+  "outputDirectory": "social-media-preview-platform/.next"
+}
