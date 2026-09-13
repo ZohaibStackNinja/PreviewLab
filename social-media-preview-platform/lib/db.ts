@@ -1,7 +1,7 @@
-import fs from 'fs';
-import path from 'path';
-import crypto from 'crypto';
-import type { Asset, Comment, Project, Session, Share, Variant } from './types';
+import fs from "fs";
+import path from "path";
+import crypto from "crypto";
+import type { Asset, Comment, Project, Session, Share, Variant } from "./types";
 
 // Local file-backed store implementing the MongoDB data architecture
 // (Architecture §9): the same collections/relationships, persisted as a JSON
@@ -24,11 +24,20 @@ interface DbShape {
 
 const DATA_DIR = process.env.SMP_DATA_DIR
   ? path.resolve(process.env.SMP_DATA_DIR)
-  : path.join(process.cwd(), 'data');
-const DB_PATH = path.join(DATA_DIR, 'db.json');
-const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
+  : process.env.VERCEL
+    ? path.join("/tmp", "preview-lab-data")
+    : path.join(process.cwd(), "data");
+const DB_PATH = path.join(DATA_DIR, "db.json");
+const UPLOADS_DIR = path.join(DATA_DIR, "uploads");
 
-const EMPTY: DbShape = { sessions: [], projects: [], variants: [], assets: [], shares: [], comments: [] };
+const EMPTY: DbShape = {
+  sessions: [],
+  projects: [],
+  variants: [],
+  assets: [],
+  shares: [],
+  comments: [],
+};
 
 function emptyDb(): DbShape {
   return JSON.parse(JSON.stringify(EMPTY)) as DbShape;
@@ -46,7 +55,7 @@ export function readDb(): DbShape {
   ensureDirs();
   let loaded: DbShape;
   try {
-    loaded = { ...emptyDb(), ...JSON.parse(fs.readFileSync(DB_PATH, 'utf8')) };
+    loaded = { ...emptyDb(), ...JSON.parse(fs.readFileSync(DB_PATH, "utf8")) };
   } catch {
     loaded = emptyDb();
   }
@@ -55,13 +64,13 @@ export function readDb(): DbShape {
 }
 
 function persist(): void {
-  const tmp = DB_PATH + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify(cache, null, 2), 'utf8');
+  const tmp = DB_PATH + ".tmp";
+  fs.writeFileSync(tmp, JSON.stringify(cache, null, 2), "utf8");
   try {
     fs.renameSync(tmp, DB_PATH);
   } catch {
     // Windows rename-over-existing can race; fall back to a direct write.
-    fs.writeFileSync(DB_PATH, JSON.stringify(cache, null, 2), 'utf8');
+    fs.writeFileSync(DB_PATH, JSON.stringify(cache, null, 2), "utf8");
     fs.rmSync(tmp, { force: true });
   }
 }
@@ -113,7 +122,10 @@ export function findProject(id: string): Project | null {
   return readDb().projects.find((p) => p.id === id) || null;
 }
 
-export function updateProject(id: string, patch: Partial<Project>): Project | null {
+export function updateProject(
+  id: string,
+  patch: Partial<Project>,
+): Project | null {
   return mutate((db) => {
     const p = db.projects.find((x) => x.id === id);
     if (!p) return null;
@@ -125,7 +137,9 @@ export function updateProject(id: string, patch: Partial<Project>): Project | nu
 export function deleteProject(id: string): boolean {
   return mutate((db) => {
     const before = db.projects.length;
-    const removedShareIds = new Set(db.shares.filter((s) => s.projectId === id).map((s) => s.id));
+    const removedShareIds = new Set(
+      db.shares.filter((s) => s.projectId === id).map((s) => s.id),
+    );
     db.projects = db.projects.filter((p) => p.id !== id);
     db.variants = db.variants.filter((v) => v.projectId !== id);
     db.assets = db.assets.filter((a) => a.projectId !== id);
@@ -158,7 +172,10 @@ export function listVariants(projectId: string): Variant[] {
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
-export function updateVariant(id: string, patch: Partial<Variant>): Variant | null {
+export function updateVariant(
+  id: string,
+  patch: Partial<Variant>,
+): Variant | null {
   return mutate((db) => {
     const v = db.variants.find((x) => x.id === id);
     if (!v) return null;
@@ -168,7 +185,9 @@ export function updateVariant(id: string, patch: Partial<Variant>): Variant | nu
 }
 
 // Returns variant + asset ids so the caller can remove the stored binary.
-export function deleteVariant(id: string): { variantId: string; assetId: string | null } | null {
+export function deleteVariant(
+  id: string,
+): { variantId: string; assetId: string | null } | null {
   return mutate((db) => {
     const v = db.variants.find((x) => x.id === id);
     if (!v) return null;
@@ -251,10 +270,10 @@ export function revokeShare(id: string): Share | null {
   });
 }
 
-export function shareStatus(share: Share): 'ACTIVE' | 'EXPIRED' | 'REVOKED' {
-  if (share.revokedAt) return 'REVOKED';
-  if (new Date(share.expiresAt).getTime() <= Date.now()) return 'EXPIRED';
-  return 'ACTIVE';
+export function shareStatus(share: Share): "ACTIVE" | "EXPIRED" | "REVOKED" {
+  if (share.revokedAt) return "REVOKED";
+  if (new Date(share.expiresAt).getTime() <= Date.now()) return "EXPIRED";
+  return "ACTIVE";
 }
 
 // ---------- Comments ----------
