@@ -32,6 +32,7 @@ export function createApp(): Express {
       },
       credentials: true,
       methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+      maxAge: 86400,
     }),
   );
 

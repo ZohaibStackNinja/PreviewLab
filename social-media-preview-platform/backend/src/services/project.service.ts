@@ -128,6 +128,14 @@ export async function toProjectSummaryView(project: ProjectDoc): Promise<Project
   const shares = await ShareLink.find({ projectId: project._id }).lean<ShareLinkDoc[]>();
   const now = Date.now();
   const activeShareCount = shares.filter((s) => !s.revokedAt && s.expiresAt.getTime() > now).length;
+  
+  let coverAssetUrl: string | null = null;
+  const coverAssetId = ordered[0] ? ordered[0].assetId.toString() : null;
+  if (coverAssetId) {
+    const asset = await Asset.findById(coverAssetId).lean<AssetDoc | null>();
+    if (asset) coverAssetUrl = assetUrl(asset);
+  }
+
   return {
     id: project._id.toString(),
     title: project.title,
@@ -142,7 +150,8 @@ export async function toProjectSummaryView(project: ProjectDoc): Promise<Project
     bannerAssetId: project.bannerAssetId ? project.bannerAssetId.toString() : null,
     activeVariantId: activeId ?? null,
     variantCount: variants.length,
-    coverAssetId: ordered[0] ? ordered[0].assetId.toString() : null,
+    coverAssetId,
+    coverAssetUrl,
     activeShareCount,
     createdAt: project.createdAt.toISOString(),
     updatedAt: project.updatedAt.toISOString(),
@@ -171,7 +180,61 @@ export async function listProjects(sessionId: string): Promise<ProjectSummaryVie
   const projects = await Project.find({ ownerSessionId: sessionId })
     .sort({ updatedAt: -1 })
     .lean<ProjectDoc[]>();
-  return Promise.all(projects.map((p) => toProjectSummaryView(p)));
+
+  const projectIds = projects.map(p => p._id);
+  const variants = await Variant.find({ projectId: { $in: projectIds } }).sort({ createdAt: 1 }).lean<VariantDoc[]>();
+  const shares = await ShareLink.find({ projectId: { $in: projectIds } }).lean<ShareLinkDoc[]>();
+  const assets = await Asset.find({ _id: { $in: variants.map(v => v.assetId) } }).lean<AssetDoc[]>();
+  
+  const assetById = new Map(assets.map(a => [a._id.toString(), a]));
+  const variantsByProject = new Map<string, VariantDoc[]>();
+  for (const v of variants) {
+    const pid = v.projectId.toString();
+    if (!variantsByProject.has(pid)) variantsByProject.set(pid, []);
+    variantsByProject.get(pid)!.push(v);
+  }
+  const sharesByProject = new Map<string, ShareLinkDoc[]>();
+  for (const s of shares) {
+    const pid = s.projectId.toString();
+    if (!sharesByProject.has(pid)) sharesByProject.set(pid, []);
+    sharesByProject.get(pid)!.push(s);
+  }
+  
+  const now = Date.now();
+  return projects.map(project => {
+    const pVariants = variantsByProject.get(project._id.toString()) || [];
+    const pShares = sharesByProject.get(project._id.toString()) || [];
+    const activeId = project.activeVariantId?.toString();
+    const ordered = [...pVariants].sort((a, b) => a._id.toString() === activeId ? -1 : b._id.toString() === activeId ? 1 : 0);
+    const coverAssetId = ordered[0] ? ordered[0].assetId.toString() : null;
+    let coverAssetUrl = null;
+    if (coverAssetId) {
+      const asset = assetById.get(coverAssetId);
+      if (asset) coverAssetUrl = assetUrl(asset);
+    }
+    const activeShareCount = pShares.filter((s) => !s.revokedAt && s.expiresAt.getTime() > now).length;
+    
+    return {
+      id: project._id.toString(),
+      title: project.title,
+      description: project.description,
+      lastPlatform: project.lastPlatform,
+      lastDevice: project.lastDevice,
+      lastContext: project.lastContext ?? null,
+      brandName: project.brandName ?? null,
+      brandHandle: project.brandHandle ?? null,
+      brandTagline: project.brandTagline ?? null,
+      logoAssetId: project.logoAssetId ? project.logoAssetId.toString() : null,
+      bannerAssetId: project.bannerAssetId ? project.bannerAssetId.toString() : null,
+      activeVariantId: activeId ?? null,
+      variantCount: pVariants.length,
+      coverAssetId,
+      coverAssetUrl,
+      activeShareCount,
+      createdAt: project.createdAt.toISOString(),
+      updatedAt: project.updatedAt.toISOString(),
+    };
+  });
 }
 
 export async function createProject(

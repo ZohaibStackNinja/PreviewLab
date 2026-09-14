@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
@@ -346,7 +346,7 @@ export default function BootstrapPage() {
                 >
                   {p.coverAssetId ? (
                     <img
-                      src={`/api/assets/${p.coverAssetId}`}
+                      src={p.coverAssetUrl || `/api/assets/${p.coverAssetId}`}
                       style={{
                         width: '100%',
                         height: '100%',

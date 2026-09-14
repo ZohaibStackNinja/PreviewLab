@@ -108,6 +108,7 @@ export interface Comment {
 export interface ProjectSummary extends Project {
   variantCount: number;
   coverAssetId: string | null;
+  coverAssetUrl?: string | null;
   /** Number of currently active (non-expired, non-revoked) share links. */
   activeShareCount: number;
 }
