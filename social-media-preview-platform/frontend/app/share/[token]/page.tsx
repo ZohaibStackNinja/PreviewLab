@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { ClockIcon, ShareIcon, WarningIcon } from '@/components/icons';
 import { SharedPreview } from '@/components/SharedPreview';
 import { ShareComments } from '@/components/ShareComments';
@@ -9,7 +10,7 @@ import { apiFetch, ServerApiError } from '@/lib/server-api';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'Review preview — Preview Lab',
+  title: 'Review preview — Practiscale Preview Lab',
   robots: { index: false, follow: false },
 };
 
@@ -110,10 +111,10 @@ export default async function SharePage({ params }: PageProps) {
   return (
     <main className="share-page">
       <header className="share-topbar">
-        <span className="brand">
+        <Link href="/" className="brand" style={{ textDecoration: 'none' }}>
           <span className="brand-mark" aria-hidden="true" />
-          Preview Lab
-        </span>
+          Practiscale Preview Lab
+        </Link>
         <span className="topbar-divider" aria-hidden="true" />
         <span className="share-review-chip">
           <ShareIcon size={13} /> Review preview
