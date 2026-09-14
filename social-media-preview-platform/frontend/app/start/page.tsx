@@ -1,12 +1,18 @@
-"use client";
+'use client';
 
-import { useCallback, useState } from "react";
-import { useRouter } from "next/navigation";
-import type { ProjectSummary, VariantView } from "@/lib/types";
-import type { PlatformId } from "@/lib/types";
-import { PLATFORMS, PLATFORM_IDS, DEFAULT_PLATFORM } from "@/lib/platforms";
-import { patchJson, postFormWithProgress, postJson, ApiError } from "@/lib/client";
-import { Dropzone } from "@/components/Dropzone";
+import { useCallback, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import type { ProjectSummary, VariantView } from '@/lib/types';
+import type { PlatformId } from '@/lib/types';
+import { PLATFORMS, PLATFORM_IDS, DEFAULT_PLATFORM } from '@/lib/platforms';
+import {
+  patchJson,
+  postFormWithProgress,
+  postJson,
+  ApiError,
+} from '@/lib/client';
+import { Dropzone } from '@/components/Dropzone';
 import {
   CheckIcon,
   FacebookIcon,
@@ -14,9 +20,12 @@ import {
   LinkedInIcon,
   TikTokIcon,
   YouTubeIcon,
-} from "@/components/icons";
+} from '@/components/icons';
 
-const WIZARD_ICONS: Record<PlatformId, (p: { size?: number }) => React.ReactNode> = {
+const WIZARD_ICONS: Record<
+  PlatformId,
+  (p: { size?: number }) => React.ReactNode
+> = {
   youtube: (p) => <YouTubeIcon {...p} />,
   instagram: (p) => <InstagramIcon {...p} />,
   facebook: (p) => <FacebookIcon {...p} />,
@@ -24,14 +33,14 @@ const WIZARD_ICONS: Record<PlatformId, (p: { size?: number }) => React.ReactNode
   linkedin: (p) => <LinkedInIcon {...p} />,
 };
 
-const STEPS = ["Project details", "Add creative", "Select platform"] as const;
+const STEPS = ['Project details', 'Add creative', 'Select platform'] as const;
 
 /** Three-step create-project flow (name → first creative → first platform). */
 export default function StartWizardPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [platform, setPlatform] = useState<PlatformId>(DEFAULT_PLATFORM);
   const [creating, setCreating] = useState(false);
@@ -41,35 +50,38 @@ export default function StartWizardPage() {
     setError(null);
     setCreating(true);
     try {
-      const { project } = await postJson<{ project: ProjectSummary }>("/api/projects", {
-        title,
-        description,
-        lastPlatform: platform,
-      });
+      const { project } = await postJson<{ project: ProjectSummary }>(
+        '/api/projects',
+        {
+          title,
+          description,
+          lastPlatform: platform,
+        },
+      );
       let firstVariant: VariantView | null = null;
       if (file) {
         try {
           const form = new FormData();
-          form.append("file", file);
-          const { variant } = await postFormWithProgress<{ variant: VariantView }>(
-            `/api/projects/${project.id}/variants`,
-            form,
-            () => undefined,
-          );
+          form.append('file', file);
+          const { variant } = await postFormWithProgress<{
+            variant: VariantView;
+          }>(`/api/projects/${project.id}/variants`, form, () => undefined);
           firstVariant = variant;
         } catch (e) {
           // The project exists; surface the upload problem in the workspace.
           setError(
             e instanceof ApiError
               ? e.message
-              : "The project was created, but the image could not be uploaded.",
+              : 'The project was created, but the image could not be uploaded.',
           );
         }
       }
       router.replace(`/project/${project.id}/${platform}`);
       void firstVariant;
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Could not create the project.");
+      setError(
+        e instanceof ApiError ? e.message : 'Could not create the project.',
+      );
       setCreating(false);
     }
   }, [title, description, file, platform, router]);
@@ -79,12 +91,14 @@ export default function StartWizardPage() {
   return (
     <main className="wizard-page">
       <header className="wizard-topbar">
-        <span className="brand">
+        <Link href="/" className="brand" style={{ textDecoration: 'none' }}>
           <span className="brand-mark" aria-hidden="true" />
-          Preview Lab
-        </span>
+          Practiscale Preview Lab
+        </Link>
         <span className="topbar-spacer" />
-        <span className="wizard-help">Preview your creative before it goes live</span>
+        <span className="wizard-help">
+          Preview your creative before it goes live
+        </span>
       </header>
 
       <div className="wizard-card">
@@ -94,7 +108,10 @@ export default function StartWizardPage() {
         </div>
         <div className="wizard-dots" aria-label={`Step ${step} of 3`}>
           {[1, 2, 3].map((n) => (
-            <span key={n} className={`wizard-dot ${n === step ? "on" : n < step ? "done" : ""}`}>
+            <span
+              key={n}
+              className={`wizard-dot ${n === step ? 'on' : n < step ? 'done' : ''}`}
+            >
               {n < step ? <CheckIcon size={12} /> : n}
             </span>
           ))}
@@ -107,11 +124,12 @@ export default function StartWizardPage() {
           <>
             <h1 className="wizard-title">Name your project</h1>
             <p className="wizard-sub">
-              Give your preview workspace a clear name. You can update these details later.
+              Give your preview workspace a clear name. You can update these
+              details later.
             </p>
             <div className="field">
               <label className="field-label" htmlFor="wiz-title">
-                Project name <span style={{ color: "var(--danger)" }}>*</span>
+                Project name <span style={{ color: 'var(--danger)' }}>*</span>
               </label>
               <input
                 id="wiz-title"
@@ -120,14 +138,19 @@ export default function StartWizardPage() {
                 maxLength={120}
                 placeholder="e.g. Q4 Brand Launch"
                 onChange={(e) => setTitle(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && canContinue && setStep(2)}
+                onKeyDown={(e) =>
+                  e.key === 'Enter' && canContinue && setStep(2)
+                }
                 autoFocus
               />
               <p className="field-help">Use a name your team will recognize.</p>
             </div>
             <div className="field">
               <label className="field-label" htmlFor="wiz-desc">
-                Description <span style={{ color: "var(--muted)", fontWeight: 400 }}>Optional</span>
+                Description{' '}
+                <span style={{ color: 'var(--muted)', fontWeight: 400 }}>
+                  Optional
+                </span>
               </label>
               <textarea
                 id="wiz-desc"
@@ -145,8 +168,8 @@ export default function StartWizardPage() {
           <>
             <h1 className="wizard-title">Upload your first image</h1>
             <p className="wizard-sub">
-              Add the creative you want to preview. You can upload more variants once your
-              project is ready.
+              Add the creative you want to preview. You can upload more variants
+              once your project is ready.
             </p>
             <Dropzone onFile={setFile} />
             {file && (
@@ -157,7 +180,9 @@ export default function StartWizardPage() {
                 </span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p className="upload-file-name truncate">{file.name}</p>
-                  <p className="upload-file-meta">{(file.size / (1024 * 1024)).toFixed(1)} MB</p>
+                  <p className="upload-file-meta">
+                    {(file.size / (1024 * 1024)).toFixed(1)} MB
+                  </p>
                 </div>
                 <button
                   className="btn-icon"
@@ -175,15 +200,20 @@ export default function StartWizardPage() {
           <>
             <h1 className="wizard-title">Choose your first platform</h1>
             <p className="wizard-sub">
-              Choose a starting platform. You can switch between all five anytime.
+              Choose a starting platform. You can switch between all five
+              anytime.
             </p>
-            <div className="wizard-platforms" role="radiogroup" aria-label="Starting platform">
+            <div
+              className="wizard-platforms"
+              role="radiogroup"
+              aria-label="Starting platform"
+            >
               {PLATFORM_IDS.map((p) => {
                 const Icon = WIZARD_ICONS[p];
                 return (
                   <button
                     key={p}
-                    className={`wizard-platform ${platform === p ? "on" : ""}`}
+                    className={`wizard-platform ${platform === p ? 'on' : ''}`}
                     role="radio"
                     aria-checked={platform === p}
                     onClick={() => setPlatform(p)}
@@ -212,13 +242,21 @@ export default function StartWizardPage() {
 
         <div className="wizard-actions">
           {step > 1 && (
-            <button className="btn btn-secondary" onClick={() => setStep((s) => s - 1)} disabled={creating}>
+            <button
+              className="btn btn-secondary"
+              onClick={() => setStep((s) => s - 1)}
+              disabled={creating}
+            >
               Back
             </button>
           )}
           <span style={{ flex: 1 }} />
           {step === 2 && (
-            <button className="btn btn-ghost" onClick={() => setStep(3)} disabled={creating}>
+            <button
+              className="btn btn-ghost"
+              onClick={() => setStep(3)}
+              disabled={creating}
+            >
               Skip for now
             </button>
           )}
@@ -231,8 +269,12 @@ export default function StartWizardPage() {
               Continue
             </button>
           ) : (
-            <button className="btn btn-primary" onClick={create} disabled={creating || !title.trim()}>
-              {creating ? "Creating…" : "Create Project"}
+            <button
+              className="btn btn-primary"
+              onClick={create}
+              disabled={creating || !title.trim()}
+            >
+              {creating ? 'Creating…' : 'Create Project'}
             </button>
           )}
         </div>
