@@ -33,10 +33,10 @@ export default async function OverviewPage({
   return (
     <div className="subpage">
       <header className="subpage-topbar">
-        <span className="brand">
+        <Link href="/" className="brand" style={{ textDecoration: 'none' }}>
           <span className="brand-mark" aria-hidden="true" />
-          Preview Lab
-        </span>
+          Practiscale Preview Lab
+        </Link>
         <span className="topbar-divider" aria-hidden="true" />
         <span className="subpage-project truncate">{project.title}</span>
         <span className="topbar-spacer" />
