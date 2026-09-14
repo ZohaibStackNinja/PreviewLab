@@ -128,7 +128,7 @@ export async function toProjectSummaryView(project: ProjectDoc): Promise<Project
   const shares = await ShareLink.find({ projectId: project._id }).lean<ShareLinkDoc[]>();
   const now = Date.now();
   const activeShareCount = shares.filter((s) => !s.revokedAt && s.expiresAt.getTime() > now).length;
-  
+
   let coverAssetUrl: string | null = null;
   const coverAssetId = ordered[0] ? ordered[0].assetId.toString() : null;
   if (coverAssetId) {
@@ -181,12 +181,16 @@ export async function listProjects(sessionId: string): Promise<ProjectSummaryVie
     .sort({ updatedAt: -1 })
     .lean<ProjectDoc[]>();
 
-  const projectIds = projects.map(p => p._id);
-  const variants = await Variant.find({ projectId: { $in: projectIds } }).sort({ createdAt: 1 }).lean<VariantDoc[]>();
+  const projectIds = projects.map((p) => p._id);
+  const variants = await Variant.find({ projectId: { $in: projectIds } })
+    .sort({ createdAt: 1 })
+    .lean<VariantDoc[]>();
   const shares = await ShareLink.find({ projectId: { $in: projectIds } }).lean<ShareLinkDoc[]>();
-  const assets = await Asset.find({ _id: { $in: variants.map(v => v.assetId) } }).lean<AssetDoc[]>();
-  
-  const assetById = new Map(assets.map(a => [a._id.toString(), a]));
+  const assets = await Asset.find({ _id: { $in: variants.map((v) => v.assetId) } }).lean<
+    AssetDoc[]
+  >();
+
+  const assetById = new Map(assets.map((a) => [a._id.toString(), a]));
   const variantsByProject = new Map<string, VariantDoc[]>();
   for (const v of variants) {
     const pid = v.projectId.toString();
@@ -199,21 +203,25 @@ export async function listProjects(sessionId: string): Promise<ProjectSummaryVie
     if (!sharesByProject.has(pid)) sharesByProject.set(pid, []);
     sharesByProject.get(pid)!.push(s);
   }
-  
+
   const now = Date.now();
-  return projects.map(project => {
+  return projects.map((project) => {
     const pVariants = variantsByProject.get(project._id.toString()) || [];
     const pShares = sharesByProject.get(project._id.toString()) || [];
     const activeId = project.activeVariantId?.toString();
-    const ordered = [...pVariants].sort((a, b) => a._id.toString() === activeId ? -1 : b._id.toString() === activeId ? 1 : 0);
+    const ordered = [...pVariants].sort((a, b) =>
+      a._id.toString() === activeId ? -1 : b._id.toString() === activeId ? 1 : 0,
+    );
     const coverAssetId = ordered[0] ? ordered[0].assetId.toString() : null;
     let coverAssetUrl = null;
     if (coverAssetId) {
       const asset = assetById.get(coverAssetId);
       if (asset) coverAssetUrl = assetUrl(asset);
     }
-    const activeShareCount = pShares.filter((s) => !s.revokedAt && s.expiresAt.getTime() > now).length;
-    
+    const activeShareCount = pShares.filter(
+      (s) => !s.revokedAt && s.expiresAt.getTime() > now,
+    ).length;
+
     return {
       id: project._id.toString(),
       title: project.title,
@@ -258,27 +266,64 @@ export async function getProjectDetail(
   shares: ShareView[];
 }> {
   const project = await getOwnedProject(projectId, sessionId);
-  const variants = await Variant.find({ projectId: project._id })
-    .sort({ createdAt: 1 })
-    .lean<VariantDoc[]>();
-  const assets = await Asset.find({ _id: { $in: variants.map((v) => v.assetId) } }).lean<
-    AssetDoc[]
-  >();
-  const assetById = new Map(assets.map((a) => [a._id.toString(), a]));
-  const shares = await ShareLink.find({ projectId: project._id })
-    .sort({ createdAt: -1 })
-    .lean<ShareLinkDoc[]>();
-    
-  const commentCounts = await Comment.aggregate<{ _id: mongoose.Types.ObjectId; count: number }>([
-    { $match: { shareId: { $in: shares.map((s) => s._id) } } },
-    { $group: { _id: "$shareId", count: { $sum: 1 } } },
+  
+  const [variants, shares] = await Promise.all([
+    Variant.find({ projectId: project._id }).sort({ createdAt: 1 }).lean<VariantDoc[]>(),
+    ShareLink.find({ projectId: project._id }).sort({ createdAt: -1 }).lean<ShareLinkDoc[]>()
   ]);
+
+  const [assets, commentCounts] = await Promise.all([
+    Asset.find({ _id: { $in: variants.map((v) => v.assetId) } }).lean<AssetDoc[]>(),
+    Comment.aggregate<{ _id: mongoose.Types.ObjectId; count: number }>([
+      { $match: { shareId: { $in: shares.map((s) => s._id) } } },
+      { $group: { _id: "$shareId", count: { $sum: 1 } } },
+    ])
+  ]);
+
+  const assetById = new Map(assets.map((a) => [a._id.toString(), a]));
   const countsByShareId = new Map(commentCounts.map((c) => [c._id.toString(), c.count]));
+  
+  const activeId = project.activeVariantId?.toString();
+  const orderedVariants = [...variants].sort((a, b) =>
+    a._id.toString() === activeId ? -1 : b._id.toString() === activeId ? 1 : 0,
+  );
+  const coverAssetId = orderedVariants[0] ? orderedVariants[0].assetId.toString() : null;
+  let coverAssetUrl: string | null = null;
+  if (coverAssetId) {
+    const asset = assetById.get(coverAssetId);
+    if (asset) coverAssetUrl = assetUrl(asset);
+  }
+
+  const now = Date.now();
+  const activeShareCount = shares.filter((s) => !s.revokedAt && s.expiresAt.getTime() > now).length;
+
+  const projectView: ProjectSummaryView = {
+    id: project._id.toString(),
+    title: project.title,
+    description: project.description,
+    lastPlatform: project.lastPlatform,
+    lastDevice: project.lastDevice,
+    lastContext: project.lastContext ?? null,
+    brandName: project.brandName ?? null,
+    brandHandle: project.brandHandle ?? null,
+    brandTagline: project.brandTagline ?? null,
+    logoAssetId: project.logoAssetId ? project.logoAssetId.toString() : null,
+    bannerAssetId: project.bannerAssetId ? project.bannerAssetId.toString() : null,
+    activeVariantId: activeId ?? null,
+    variantCount: variants.length,
+    coverAssetId,
+    coverAssetUrl,
+    activeShareCount,
+    createdAt: project.createdAt.toISOString(),
+    updatedAt: project.updatedAt.toISOString(),
+  };
 
   return {
-    project: await toProjectSummaryView(project),
+    project: projectView,
     variants: variants.map((v) => toVariantView(v, assetById.get(v.assetId.toString()) || null)),
-    shares: shares.map((s) => toShareView(s, undefined, countsByShareId.get(s._id.toString()) || 0)),
+    shares: shares.map((s) =>
+      toShareView(s, undefined, countsByShareId.get(s._id.toString()) || 0),
+    ),
   };
 }
 

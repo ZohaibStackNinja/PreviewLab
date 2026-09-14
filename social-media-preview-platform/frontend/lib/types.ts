@@ -1,7 +1,8 @@
 // Shared domain contracts (packages/contracts in the Architecture document).
 // These types are the single source of truth for API payloads and UI state.
 
-export type PlatformId = 'youtube' | 'instagram' | 'facebook' | 'tiktok' | 'linkedin';
+export type PlatformId =
+  'youtube' | 'instagram' | 'facebook' | 'tiktok' | 'linkedin';
 export type DeviceMode = 'desktop' | 'mobile';
 export type FitMode = 'crop' | 'contain';
 /** Simulated app theme (currently applied to the YouTube mockups). */
