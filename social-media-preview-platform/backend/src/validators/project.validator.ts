@@ -5,6 +5,7 @@ export const createProjectSchema = z.object({
   body: z.object({
     title: trimNonEmpty(120, "project name"),
     description: z.string().trim().max(500).optional().default(""),
+    lastPlatform: platformIdSchema.optional(),
   }),
 });
 

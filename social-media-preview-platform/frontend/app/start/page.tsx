@@ -44,6 +44,7 @@ export default function StartWizardPage() {
       const { project } = await postJson<{ project: ProjectSummary }>("/api/projects", {
         title,
         description,
+        lastPlatform: platform,
       });
       let firstVariant: VariantView | null = null;
       if (file) {
@@ -65,7 +66,6 @@ export default function StartWizardPage() {
           );
         }
       }
-      await patchJson(`/api/projects/${project.id}`, { lastPlatform: platform });
       router.replace(`/project/${project.id}/${platform}`);
       void firstVariant;
     } catch (e) {

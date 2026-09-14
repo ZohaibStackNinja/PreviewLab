@@ -118,14 +118,16 @@ export function toShareView(share: ShareLinkDoc, url?: string, commentCount?: nu
 }
 
 export async function toProjectSummaryView(project: ProjectDoc): Promise<ProjectSummaryView> {
-  const variants = await Variant.find({ projectId: project._id })
-    .sort({ createdAt: 1 })
-    .lean<VariantDoc[]>();
+  const [variants, shares] = await Promise.all([
+    Variant.find({ projectId: project._id }).sort({ createdAt: 1 }).lean<VariantDoc[]>(),
+    ShareLink.find({ projectId: project._id }).lean<ShareLinkDoc[]>()
+  ]);
+
   const activeId = project.activeVariantId?.toString();
   const ordered = [...variants].sort((a, b) =>
     a._id.toString() === activeId ? -1 : b._id.toString() === activeId ? 1 : 0,
   );
-  const shares = await ShareLink.find({ projectId: project._id }).lean<ShareLinkDoc[]>();
+  
   const now = Date.now();
   const activeShareCount = shares.filter((s) => !s.revokedAt && s.expiresAt.getTime() > now).length;
 
@@ -247,14 +249,35 @@ export async function listProjects(sessionId: string): Promise<ProjectSummaryVie
 
 export async function createProject(
   sessionId: string,
-  dto: { title: string; description?: string },
+  dto: { title: string; description?: string; lastPlatform?: string },
 ): Promise<ProjectSummaryView> {
   const project = await Project.create({
     title: dto.title,
     description: dto.description ?? "",
+    lastPlatform: dto.lastPlatform ?? "instagram",
     ownerSessionId: sessionId,
   });
-  return toProjectSummaryView(project.toObject() as ProjectDoc);
+  
+  return {
+    id: project._id.toString(),
+    title: project.title,
+    description: project.description,
+    lastPlatform: project.lastPlatform,
+    lastDevice: project.lastDevice,
+    lastContext: project.lastContext ?? null,
+    brandName: project.brandName ?? null,
+    brandHandle: project.brandHandle ?? null,
+    brandTagline: project.brandTagline ?? null,
+    logoAssetId: project.logoAssetId ? project.logoAssetId.toString() : null,
+    bannerAssetId: project.bannerAssetId ? project.bannerAssetId.toString() : null,
+    activeVariantId: null,
+    variantCount: 0,
+    coverAssetId: null,
+    coverAssetUrl: null,
+    activeShareCount: 0,
+    createdAt: project.createdAt.toISOString(),
+    updatedAt: project.updatedAt.toISOString(),
+  };
 }
 
 export async function getProjectDetail(
@@ -266,10 +289,10 @@ export async function getProjectDetail(
   shares: ShareView[];
 }> {
   const project = await getOwnedProject(projectId, sessionId);
-  
+
   const [variants, shares] = await Promise.all([
     Variant.find({ projectId: project._id }).sort({ createdAt: 1 }).lean<VariantDoc[]>(),
-    ShareLink.find({ projectId: project._id }).sort({ createdAt: -1 }).lean<ShareLinkDoc[]>()
+    ShareLink.find({ projectId: project._id }).sort({ createdAt: -1 }).lean<ShareLinkDoc[]>(),
   ]);
 
   const [assets, commentCounts] = await Promise.all([
@@ -277,12 +300,12 @@ export async function getProjectDetail(
     Comment.aggregate<{ _id: mongoose.Types.ObjectId; count: number }>([
       { $match: { shareId: { $in: shares.map((s) => s._id) } } },
       { $group: { _id: "$shareId", count: { $sum: 1 } } },
-    ])
+    ]),
   ]);
 
   const assetById = new Map(assets.map((a) => [a._id.toString(), a]));
   const countsByShareId = new Map(commentCounts.map((c) => [c._id.toString(), c.count]));
-  
+
   const activeId = project.activeVariantId?.toString();
   const orderedVariants = [...variants].sort((a, b) =>
     a._id.toString() === activeId ? -1 : b._id.toString() === activeId ? 1 : 0,

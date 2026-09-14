@@ -32,8 +32,8 @@ export async function listProjects(req: Request, res: Response): Promise<void> {
 
 export async function createProject(req: Request, res: Response): Promise<void> {
   const { sessionId } = await ensureSession(req, res);
-  const { title, description } = req.body as { title: string; description?: string };
-  ok(res, { project: await projectService.createProject(sessionId, { title, description }) }, 201);
+  const { title, description, lastPlatform } = req.body as { title: string; description?: string; lastPlatform?: string };
+  ok(res, { project: await projectService.createProject(sessionId, { title, description, lastPlatform }) }, 201);
 }
 
 export async function getProjectDetail(req: Request, res: Response): Promise<void> {
