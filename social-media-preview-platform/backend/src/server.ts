@@ -9,7 +9,7 @@ async function main(): Promise<void> {
 
   const app = createApp();
   app.listen(env.PORT, () => {
-    console.log(`[api] Preview Lab API listening on http://localhost:${env.PORT}`);
+    console.log(`[api] Practiscale Preview Lab API listening on http://localhost:${env.PORT}`);
     console.log(`[api] CORS origins: ${env.allowedOrigins.join(", ")}`);
     console.log(`[api] storage driver: ${env.STORAGE_DRIVER}`);
   });
