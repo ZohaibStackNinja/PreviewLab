@@ -58,6 +58,8 @@ export interface ProjectSummaryView {
   activeVariantId: string | null;
   variantCount: number;
   coverAssetId: string | null;
+  /** Resolved delivery URL for the cover asset (convenience for list views). */
+  coverAssetUrl: string | null;
   activeShareCount: number;
   createdAt: string;
   updatedAt: string;
@@ -120,14 +122,14 @@ export function toShareView(share: ShareLinkDoc, url?: string, commentCount?: nu
 export async function toProjectSummaryView(project: ProjectDoc): Promise<ProjectSummaryView> {
   const [variants, shares] = await Promise.all([
     Variant.find({ projectId: project._id }).sort({ createdAt: 1 }).lean<VariantDoc[]>(),
-    ShareLink.find({ projectId: project._id }).lean<ShareLinkDoc[]>()
+    ShareLink.find({ projectId: project._id }).lean<ShareLinkDoc[]>(),
   ]);
 
   const activeId = project.activeVariantId?.toString();
   const ordered = [...variants].sort((a, b) =>
     a._id.toString() === activeId ? -1 : b._id.toString() === activeId ? 1 : 0,
   );
-  
+
   const now = Date.now();
   const activeShareCount = shares.filter((s) => !s.revokedAt && s.expiresAt.getTime() > now).length;
 
@@ -257,7 +259,7 @@ export async function createProject(
     lastPlatform: dto.lastPlatform ?? "instagram",
     ownerSessionId: sessionId,
   });
-  
+
   return {
     id: project._id.toString(),
     title: project.title,
