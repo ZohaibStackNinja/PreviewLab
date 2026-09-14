@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { api, ApiError } from '@/lib/client';
 import type { PlatformId, Project, VariantView } from '@/lib/types';
 import { CompareView } from '@/components/CompareView';
+import { LoaderScreen } from '@/components/LoaderScreen';
 
 interface CompareClientLoaderProps {
   projectId: string;
@@ -54,48 +55,7 @@ export function CompareClientLoader({
   }, [projectId]);
 
   if (loading) {
-    return (
-      <main
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'var(--surface)',
-        }}
-      >
-        <div style={{ textAlign: 'center' }}>
-          <span
-            className="brand-mark"
-            aria-hidden="true"
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 13,
-              margin: '0 auto 14px',
-              display: 'flex',
-            }}
-          />
-          <p style={{ fontWeight: 700, fontSize: 16, color: 'var(--text)' }}>
-            Preview Lab
-          </p>
-          <p
-            style={{
-              fontSize: 13,
-              color: 'var(--text-2)',
-              marginTop: 4,
-              display: 'flex',
-              gap: 8,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <span className="spinner" aria-hidden="true" /> Loading
-            comparison...
-          </p>
-        </div>
-      </main>
-    );
+    return <LoaderScreen />;
   }
 
   if (error || !data) {
@@ -147,10 +107,10 @@ export function CompareClientLoader({
   return (
     <div className="subpage">
       <header className="subpage-topbar">
-        <span className="brand">
+        <Link href="/" className="brand" style={{ textDecoration: 'none' }}>
           <span className="brand-mark" aria-hidden="true" />
-          Preview Lab
-        </span>
+          Practiscale Preview Lab
+        </Link>
         <span className="topbar-divider" aria-hidden="true" />
         <span className="subpage-project truncate">{project.title}</span>
         <span className="topbar-spacer" />
