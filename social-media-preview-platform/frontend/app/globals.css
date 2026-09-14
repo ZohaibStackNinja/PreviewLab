@@ -1,4 +1,8 @@
-﻿/* ============================================================
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+/* ============================================================
    Social Media Preview Platform — design system
    Social Media Preview Platform â€” design system
    Palette, type scale, spacing, radii and elevation are taken
@@ -456,20 +460,14 @@ a {
 .brand-mark {
   width: 26px;
   height: 26px;
-  border-radius: 8px;
-  background: var(--brand);
-  color: var(--white);
+  border-radius: 6px;
+  background: #ffffff url('/logo.png') center / cover no-repeat;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: none;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-}
-
-.brand-mark::after {
-  content: 'PL';
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .topbar-divider {
@@ -4688,8 +4686,6 @@ a {
   }
 }
 
- 
-
 .comment-badge {
   display: inline-flex;
   align-items: center;
@@ -4706,4 +4702,25 @@ a {
   top: -4px;
   right: -4px;
 }
-.btn-icon { position: relative; }
+.btn-icon {
+  position: relative;
+}
+
+@keyframes loader-progress {
+  0% {
+    left: -50%;
+    width: 50%;
+  }
+  100% {
+    left: 100%;
+    width: 50%;
+  }
+}
+.animate-loader-bar {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background-color: var(--brand);
+  border-radius: 9999px;
+  animation: loader-progress 1.2s infinite ease-in-out;
+}
