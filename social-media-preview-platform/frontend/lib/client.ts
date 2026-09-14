@@ -10,9 +10,14 @@ export class ApiError extends Error {
   }
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
+let API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
+if (process.env.NODE_ENV === 'production' && API_BASE.includes('localhost')) {
+  API_BASE = '';
+}
 
-export function absoluteAssetUrl(url: string | null | undefined): string | null {
+export function absoluteAssetUrl(
+  url: string | null | undefined,
+): string | null {
   if (!url) return null;
   if (/^https?:\/\//i.test(url)) return url;
   return `${API_BASE}${url}`;
@@ -22,9 +27,15 @@ export function absoluteAssetUrl(url: string | null | undefined): string | null 
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(`${API_BASE}${path}`, { credentials: 'include', ...init });
+    res = await fetch(`${API_BASE}${path}`, {
+      credentials: 'include',
+      ...init,
+    });
   } catch {
-    throw new ApiError('NETWORK', 'Could not reach the server. Check your connection and try again.');
+    throw new ApiError(
+      'NETWORK',
+      'Could not reach the server. Check your connection and try again.',
+    );
   }
   let payload: ApiEnvelope<T> | null = null;
   try {
@@ -35,7 +46,8 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   if (payload && payload.success) return payload.data;
   const code = payload?.error?.code ?? `HTTP_${res.status}`;
   const message =
-    payload?.error?.message ?? 'Something went wrong. Please try again in a moment.';
+    payload?.error?.message ??
+    'Something went wrong. Please try again in a moment.';
   throw new ApiError(code, message);
 }
 
@@ -73,19 +85,27 @@ export function postFormWithProgress<T>(
       signal.addEventListener('abort', abort);
     }
     xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+      if (e.lengthComputable)
+        onProgress(Math.round((e.loaded / e.total) * 100));
     };
     xhr.onload = () => {
       const payload = xhr.response as ApiEnvelope<T> | null;
       if (payload && payload.success) return resolve(payload.data);
       const code = payload?.error?.code ?? `HTTP_${xhr.status}`;
       const message =
-        payload?.error?.message ?? 'The upload failed. Please check your connection and try again.';
+        payload?.error?.message ??
+        'The upload failed. Please check your connection and try again.';
       reject(new ApiError(code, message));
     };
     xhr.onerror = () =>
-      reject(new ApiError('NETWORK', 'The upload failed. Please check your connection and try again.'));
-    xhr.onabort = () => reject(new ApiError('UPLOAD_CANCELLED', 'Upload cancelled.'));
+      reject(
+        new ApiError(
+          'NETWORK',
+          'The upload failed. Please check your connection and try again.',
+        ),
+      );
+    xhr.onabort = () =>
+      reject(new ApiError('UPLOAD_CANCELLED', 'Upload cancelled.'));
     xhr.send(form);
   });
 }
