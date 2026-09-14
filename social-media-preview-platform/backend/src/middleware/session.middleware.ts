@@ -12,7 +12,7 @@ export function sessionCookieOptions() {
     sameSite: process.env.COOKIE_SAMESITE === "none" ? ("none" as const) : ("lax" as const),
     secure: env.COOKIE_SECURE === "true" || env.isProd,
     path: "/",
-    maxAge: Math.floor(SESSION_TTL_MS / 1000),
+    maxAge: SESSION_TTL_MS,
   };
 }
 
@@ -21,10 +21,7 @@ export function sessionCookieOptions() {
  * lives only in an HttpOnly cookie; MongoDB stores a keyed hash. The first
  * API call creates the session so the owner never signs in.
  */
-export async function ensureSession(
-  req: Request,
-  res: Response,
-): Promise<{ sessionId: string }> {
+export async function ensureSession(req: Request, res: Response): Promise<{ sessionId: string }> {
   const raw = req.cookies?.[SESSION_COOKIE];
   if (raw) {
     const session = await Session.findOne({
