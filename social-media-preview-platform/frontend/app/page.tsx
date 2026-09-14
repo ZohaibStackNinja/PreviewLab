@@ -1,7 +1,10 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import { api, ApiError } from '@/lib/client';
 import type { ProjectSummary } from '@/lib/types';
 import { DEFAULT_PLATFORM } from '@/lib/platforms';
@@ -14,6 +17,7 @@ import {
   TikTokIcon,
   LinkedInIcon,
 } from '@/components/icons';
+import { LoaderScreen } from '@/components/LoaderScreen';
 
 function formatModifiedDate(iso: string): string {
   const date = new Date(iso);
@@ -55,37 +59,26 @@ function PlatformIcon({ platform }: { platform: string }) {
 
 export default function BootstrapPage() {
   const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
-  const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
   const [search, setSearch] = useState('');
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        await api('/api/session', { method: 'POST' });
-        let { projects } = await api<{ projects: ProjectSummary[] }>(
-          '/api/projects',
-        );
-        if (projects.length === 0) {
-          router.replace('/start');
-          return;
-        }
-        if (cancelled) return;
-        setProjects(projects);
-      } catch (e) {
-        if (!cancelled)
-          setError(
-            e instanceof ApiError
-              ? e.message
-              : 'Could not open the workspace. Please try again.',
-          );
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [router]);
+  const {
+    data: projects,
+    error,
+    isPending,
+    isFetching,
+    refetch,
+  } = useQuery({
+    queryKey: ['projects'],
+    queryFn: async () => {
+      await api('/api/session', { method: 'POST' });
+      const { projects } = await api<{ projects: ProjectSummary[] }>(
+        '/api/projects',
+      );
+      // Removed router.replace('/start') for empty state
+      return projects;
+    },
+    retry: false,
+  });
 
   const filtered = useMemo(() => {
     if (!projects) return [];
@@ -94,7 +87,7 @@ export default function BootstrapPage() {
     return projects.filter((p) => p.title.toLowerCase().includes(q));
   }, [projects, search]);
 
-  if (error) {
+  if (error && !isFetching) {
     return (
       <main
         style={{
@@ -111,12 +104,14 @@ export default function BootstrapPage() {
             role="alert"
             style={{ justifyContent: 'center', marginTop: 8 }}
           >
-            {error}
+            {error instanceof ApiError
+              ? error.message
+              : 'Could not open the workspace. Please try again.'}
           </p>
           <button
             className="btn btn-primary btn-sm"
             style={{ marginTop: 12 }}
-            onClick={() => router.replace('/')}
+            onClick={() => refetch()}
           >
             Retry
           </button>
@@ -125,49 +120,8 @@ export default function BootstrapPage() {
     );
   }
 
-  if (!projects) {
-    return (
-      <main
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'var(--surface)',
-        }}
-      >
-        <div style={{ textAlign: 'center' }}>
-          <span
-            className="brand-mark"
-            aria-hidden="true"
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 13,
-              margin: '0 auto 14px',
-              display: 'flex',
-            }}
-          />
-          <p style={{ fontWeight: 700, fontSize: 16, color: 'var(--text)' }}>
-            Preview Lab
-          </p>
-          <p
-            style={{
-              fontSize: 13,
-              color: 'var(--text-2)',
-              marginTop: 4,
-              display: 'flex',
-              gap: 8,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <span className="spinner" aria-hidden="true" /> Loading your
-            projects...
-          </p>
-        </div>
-      </main>
-    );
+  if (isPending || (isFetching && !projects)) {
+    return <LoaderScreen />;
   }
 
   return (
@@ -185,27 +139,31 @@ export default function BootstrapPage() {
           borderBottom: '1px solid var(--border)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div
+        <Link
+          href="/"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            textDecoration: 'none',
+          }}
+        >
+          <Image
+            src="/logo.png"
+            alt="Practiscale Preview Lab logo"
+            width={28}
+            height={28}
             style={{
-              width: 28,
-              height: 28,
-              background: 'var(--brand)',
               borderRadius: 6,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              fontWeight: 700,
-              fontSize: 16,
+              objectFit: 'cover',
+              border: '1px solid rgba(0, 0, 0, 0.08)',
             }}
-          >
-            P
-          </div>
+            priority
+          />
           <span style={{ fontWeight: 600, fontSize: 15, color: 'var(--text)' }}>
-            Practiscale Preview
+            Practiscale Preview Lab
           </span>
-        </div>
+        </Link>
         <div
           style={{
             display: 'flex',
@@ -311,161 +269,208 @@ export default function BootstrapPage() {
             </div>
           </div>
 
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-              gap: 24,
-            }}
-          >
-            {filtered.map((p) => (
-              <div
-                key={p.id}
-                className="project-card"
+          {!projects || projects.length === 0 ? (
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '64px 20px',
+                background: 'white',
+                borderRadius: 12,
+                border: '1px dashed var(--border)',
+                textAlign: 'center',
+              }}
+            >
+              <h2
                 style={{
-                  padding: 0,
-                  overflow: 'hidden',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
+                  fontSize: 20,
+                  fontWeight: 700,
+                  marginBottom: 12,
+                  color: 'var(--text)',
                 }}
-                onClick={() =>
-                  router.push(
-                    `/project/${p.id}/${p.lastPlatform || DEFAULT_PLATFORM}`,
-                  )
-                }
               >
+                No projects yet
+              </h2>
+              <p
+                style={{
+                  color: 'var(--text-2)',
+                  marginBottom: 24,
+                  maxWidth: 400,
+                }}
+              >
+                Create your first project to start previewing creatives across
+                social media platforms.
+              </p>
+              <button
+                className="btn btn-primary"
+                onClick={() => router.push('/start')}
+              >
+                + Create Project
+              </button>
+            </div>
+          ) : (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+                gap: 24,
+              }}
+            >
+              {filtered.map((p) => (
                 <div
+                  key={p.id}
+                  className="project-card"
                   style={{
-                    height: 160,
-                    background: 'var(--surface)',
-                    borderBottom: '1px solid var(--border)',
-                    position: 'relative',
+                    padding: 0,
                     overflow: 'hidden',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
                   }}
+                  onClick={() =>
+                    router.push(
+                      `/project/${p.id}/${p.lastPlatform || DEFAULT_PLATFORM}`,
+                    )
+                  }
                 >
-                  {p.coverAssetId ? (
-                    <img
-                      src={p.coverAssetUrl || `/api/assets/${p.coverAssetId}`}
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                      }}
-                      alt=""
-                    />
-                  ) : (
+                  <div
+                    style={{
+                      height: 160,
+                      background: 'var(--surface)',
+                      borderBottom: '1px solid var(--border)',
+                      position: 'relative',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {p.coverAssetId ? (
+                      <img
+                        src={p.coverAssetUrl || `/api/assets/${p.coverAssetId}`}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                        }}
+                        alt=""
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          height: '100%',
+                          color: 'var(--text-3)',
+                          fontSize: 13,
+                        }}
+                      >
+                        No creative
+                      </div>
+                    )}
+                  </div>
+                  <div
+                    style={{
+                      padding: '20px 24px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 14,
+                      flex: 1,
+                      background: 'white',
+                    }}
+                  >
                     <div
                       style={{
                         display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        height: '100%',
-                        color: 'var(--text-3)',
-                        fontSize: 13,
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
                       }}
                     >
-                      No creative
+                      <h3
+                        style={{
+                          fontSize: 17,
+                          fontWeight: 700,
+                          margin: 0,
+                          color: 'var(--text)',
+                        }}
+                      >
+                        {p.title}
+                      </h3>
+                      <button
+                        className="btn-icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                        }}
+                        style={{ color: 'var(--text-3)' }}
+                      >
+                        <MoreIcon size={20} />
+                      </button>
                     </div>
-                  )}
-                </div>
-                <div
-                  style={{
-                    padding: '20px 24px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 14,
-                    flex: 1,
-                    background: 'white',
-                  }}
-                >
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'flex-start',
-                    }}
-                  >
-                    <h3
+
+                    <div
                       style={{
-                        fontSize: 17,
-                        fontWeight: 700,
-                        margin: 0,
-                        color: 'var(--text)',
+                        display: 'flex',
+                        gap: 6,
+                        color: 'var(--text-3)',
                       }}
                     >
-                      {p.title}
-                    </h3>
-                    <button
-                      className="btn-icon"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                      }}
-                      style={{ color: 'var(--text-3)' }}
-                    >
-                      <MoreIcon size={20} />
-                    </button>
-                  </div>
-
-                  <div
-                    style={{ display: 'flex', gap: 6, color: 'var(--text-3)' }}
-                  >
-                    <PlatformIcon
-                      platform={p.lastPlatform || DEFAULT_PLATFORM}
-                    />
-                    {p.variantCount > 1 && p.lastPlatform !== 'instagram' && (
-                      <PlatformIcon platform="instagram" />
-                    )}
-                  </div>
-
-                  <div
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 8,
-                      marginTop: 'auto',
-                    }}
-                  >
-                    <span style={{ fontSize: 12, color: 'var(--text-3)' }}>
-                      {formatModifiedDate(p.updatedAt)}
-                    </span>
-                    <div>
-                      {p.activeShareCount > 0 ? (
-                        <span
-                          style={{
-                            display: 'inline-flex',
-                            background: '#e0f2f1',
-                            color: '#00c4b5',
-                            fontSize: 11,
-                            fontWeight: 700,
-                            padding: '4px 8px',
-                            borderRadius: 12,
-                          }}
-                        >
-                          Shared · {p.activeShareCount} link
-                          {p.activeShareCount !== 1 ? 's' : ''} active
-                        </span>
-                      ) : (
-                        <span
-                          style={{
-                            display: 'inline-flex',
-                            background: 'var(--surface)',
-                            color: 'var(--text-2)',
-                            fontSize: 11,
-                            fontWeight: 700,
-                            padding: '4px 8px',
-                            borderRadius: 12,
-                          }}
-                        >
-                          Private
-                        </span>
+                      <PlatformIcon
+                        platform={p.lastPlatform || DEFAULT_PLATFORM}
+                      />
+                      {p.variantCount > 1 && p.lastPlatform !== 'instagram' && (
+                        <PlatformIcon platform="instagram" />
                       )}
                     </div>
+
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 8,
+                        marginTop: 'auto',
+                      }}
+                    >
+                      <span style={{ fontSize: 12, color: 'var(--text-3)' }}>
+                        {formatModifiedDate(p.updatedAt)}
+                      </span>
+                      <div>
+                        {p.activeShareCount > 0 ? (
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              background: '#e0f2f1',
+                              color: '#00c4b5',
+                              fontSize: 11,
+                              fontWeight: 700,
+                              padding: '4px 8px',
+                              borderRadius: 12,
+                            }}
+                          >
+                            Shared · {p.activeShareCount} link
+                            {p.activeShareCount !== 1 ? 's' : ''} active
+                          </span>
+                        ) : (
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              background: 'var(--surface)',
+                              color: 'var(--text-2)',
+                              fontSize: 11,
+                              fontWeight: 700,
+                              padding: '4px 8px',
+                              borderRadius: 12,
+                            }}
+                          >
+                            Private
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </main>
     </div>
