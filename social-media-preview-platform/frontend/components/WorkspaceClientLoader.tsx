@@ -18,6 +18,7 @@ import {
   isValidContext,
 } from '@/lib/platforms';
 import { Workspace } from '@/components/Workspace';
+import { LoaderScreen } from '@/components/LoaderScreen';
 
 interface WorkspaceClientLoaderProps {
   projectId: string;
@@ -70,47 +71,7 @@ export function WorkspaceClientLoader({
   }, [projectId]);
 
   if (loading) {
-    return (
-      <main
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'var(--surface)',
-        }}
-      >
-        <div style={{ textAlign: 'center' }}>
-          <span
-            className="brand-mark"
-            aria-hidden="true"
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 13,
-              margin: '0 auto 14px',
-              display: 'flex',
-            }}
-          />
-          <p style={{ fontWeight: 700, fontSize: 16, color: 'var(--text)' }}>
-            Preview Lab
-          </p>
-          <p
-            style={{
-              fontSize: 13,
-              color: 'var(--text-2)',
-              marginTop: 4,
-              display: 'flex',
-              gap: 8,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <span className="spinner" aria-hidden="true" /> Opening workspace...
-          </p>
-        </div>
-      </main>
-    );
+    return <LoaderScreen />;
   }
 
   if (error || !data) {
