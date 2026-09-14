@@ -7,6 +7,8 @@ const PNG_BYTES = Buffer.from(
 
 test('runs the owner and guest review flow', async ({ page, browser }) => {
   await page.goto('/');
+  await page.getByRole('button', { name: '+ Create Project' }).click();
+  await page.goto('/start');
   await expect(page).toHaveURL(/\/start$/);
   await page.locator('#wiz-title').fill(`Smoke ${Date.now()}`);
   await page.getByRole('button', { name: 'Continue' }).click();
