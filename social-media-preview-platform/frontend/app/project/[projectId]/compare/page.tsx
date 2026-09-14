@@ -1,12 +1,13 @@
-import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
-import { cookies } from "next/headers";
-import { apiFetch } from "@/lib/server-api";
-import type { Project, VariantView } from "@/lib/types";
-import { isPlatformId } from "@/lib/platforms";
-import { CompareView } from "@/components/CompareView";
+import Link from 'next/link';
+import { notFound, redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
+import { apiFetch } from '@/lib/server-api';
+import type { Project, VariantView } from '@/lib/types';
+import { isPlatformId } from '@/lib/platforms';
+import { CompareView } from '@/components/CompareView';
+import { CompareClientLoader } from '@/components/CompareClientLoader';
 
-export const dynamic = "force-dynamic";
+export const dynamic = 'force-dynamic';
 
 interface PageProps {
   params: { projectId: string };
@@ -16,17 +17,33 @@ interface PageProps {
 /** Side-by-side comparison of the creative in two platform contexts. */
 export default async function ComparePage({ params, searchParams }: PageProps) {
   const cookieHeader = cookies().toString();
-  if (!cookieHeader) redirect("/");
-  let detail: { project: Project; variants: VariantView[] };
-  try {
-    detail = await apiFetch(`/projects/${params.projectId}`, cookieHeader);
-  } catch {
-    notFound();
+  let detail: { project: Project; variants: VariantView[] } | null = null;
+  if (cookieHeader) {
+    try {
+      detail = await apiFetch(`/projects/${params.projectId}`, cookieHeader);
+    } catch {
+      detail = null;
+    }
   }
-  const { project, variants } = detail!;
 
-  const left = isPlatformId(searchParams.left || "") ? (searchParams.left as never) : "instagram";
-  const right = isPlatformId(searchParams.right || "") ? (searchParams.right as never) : "facebook";
+  const left = isPlatformId(searchParams.left || '')
+    ? (searchParams.left as never)
+    : 'instagram';
+  const right = isPlatformId(searchParams.right || '')
+    ? (searchParams.right as never)
+    : 'facebook';
+
+  if (!detail) {
+    return (
+      <CompareClientLoader
+        projectId={params.projectId}
+        left={left}
+        right={right}
+      />
+    );
+  }
+
+  const { project, variants } = detail;
 
   return (
     <div className="subpage">

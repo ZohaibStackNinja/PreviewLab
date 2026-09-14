@@ -1,8 +1,15 @@
 import { notFound, redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import type { DeviceMode, PlatformId } from '@/lib/types';
-import { PLATFORMS, defaultContext, isDeviceMode, isPlatformId, isValidContext } from '@/lib/platforms';
+import {
+  PLATFORMS,
+  defaultContext,
+  isDeviceMode,
+  isPlatformId,
+  isValidContext,
+} from '@/lib/platforms';
 import { Workspace } from '@/components/Workspace';
+import { WorkspaceClientLoader } from '@/components/WorkspaceClientLoader';
 import { apiFetch } from '@/lib/server-api';
 import type { Project, ShareView, VariantView } from '@/lib/types';
 
@@ -18,16 +25,36 @@ interface PageProps {
  * a first-class route; the project, variant, placement and device are
  * retained when switching between routes (NAV-006).
  */
-export default async function PlatformWorkspacePage({ params, searchParams }: PageProps) {
+export default async function PlatformWorkspacePage({
+  params,
+  searchParams,
+}: PageProps) {
   const cookieHeader = cookies().toString();
-  if (!cookieHeader) redirect('/');
-  let detail: { project: Project; variants: VariantView[]; shares: ShareView[] };
-  try {
-    detail = await apiFetch(`/projects/${params.projectId}`, cookieHeader);
-  } catch {
-    notFound();
+  let detail: {
+    project: Project;
+    variants: VariantView[];
+    shares: ShareView[];
+  } | null = null;
+  if (cookieHeader) {
+    try {
+      detail = await apiFetch(`/projects/${params.projectId}`, cookieHeader);
+    } catch {
+      detail = null;
+    }
   }
-  const { project, variants, shares } = detail!;
+
+  if (!detail) {
+    return (
+      <WorkspaceClientLoader
+        projectId={params.projectId}
+        platform={params.platform}
+        initialDevice={searchParams.device}
+        initialContext={searchParams.context}
+      />
+    );
+  }
+
+  const { project, variants, shares } = detail;
   if (!isPlatformId(params.platform)) notFound();
   const platform: PlatformId = params.platform;
 

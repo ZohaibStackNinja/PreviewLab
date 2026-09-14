@@ -1,11 +1,12 @@
-import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
-import { cookies } from "next/headers";
-import { apiFetch } from "@/lib/server-api";
-import type { Project, VariantView } from "@/lib/types";
-import { OverviewGrid } from "@/components/OverviewGrid";
+import Link from 'next/link';
+import { notFound, redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
+import { apiFetch } from '@/lib/server-api';
+import type { Project, VariantView } from '@/lib/types';
+import { OverviewGrid } from '@/components/OverviewGrid';
+import { OverviewClientLoader } from '@/components/OverviewClientLoader';
 
-export const dynamic = "force-dynamic";
+export const dynamic = 'force-dynamic';
 
 /** All-platforms overview: the active creative in every context at once. */
 export default async function OverviewPage({
@@ -14,14 +15,20 @@ export default async function OverviewPage({
   params: { projectId: string };
 }) {
   const cookieHeader = cookies().toString();
-  if (!cookieHeader) redirect("/");
-  let detail: { project: Project; variants: VariantView[] };
-  try {
-    detail = await apiFetch(`/projects/${params.projectId}`, cookieHeader);
-  } catch {
-    notFound();
+  let detail: { project: Project; variants: VariantView[] } | null = null;
+  if (cookieHeader) {
+    try {
+      detail = await apiFetch(`/projects/${params.projectId}`, cookieHeader);
+    } catch {
+      detail = null;
+    }
   }
-  const { project, variants } = detail!;
+
+  if (!detail) {
+    return <OverviewClientLoader projectId={params.projectId} />;
+  }
+
+  const { project, variants } = detail;
 
   return (
     <div className="subpage">
