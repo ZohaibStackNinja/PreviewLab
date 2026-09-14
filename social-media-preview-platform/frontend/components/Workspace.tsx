@@ -1,7 +1,8 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import type {
   CropAdjustment,
   DeviceMode,
@@ -12,15 +13,15 @@ import type {
   ProjectSummary,
   ShareView,
   VariantView,
-} from "@/lib/types";
-import type { PlatformId } from "@/lib/types";
+} from '@/lib/types';
+import type { PlatformId } from '@/lib/types';
 import {
   DEFAULT_PLATFORM,
   PLATFORMS,
   PLATFORM_IDS,
   contextLabel,
   defaultContext,
-} from "@/lib/platforms";
+} from '@/lib/platforms';
 import {
   ApiError,
   api,
@@ -28,12 +29,12 @@ import {
   patchJson,
   postForm,
   postJson,
-} from "@/lib/client";
-import { formatBytes, formatDimensions } from "@/lib/format";
-import { PreviewRenderer } from "@/components/previews/PreviewRenderer";
-import { ShareModal } from "@/components/ShareModal";
-import { BrandModal } from "@/components/BrandModal";
-import { CommentsPanel, type CommentItem } from "@/components/Comments";
+} from '@/lib/client';
+import { formatBytes, formatDimensions } from '@/lib/format';
+import { PreviewRenderer } from '@/components/previews/PreviewRenderer';
+import { ShareModal } from '@/components/ShareModal';
+import { BrandModal } from '@/components/BrandModal';
+import { CommentsPanel, type CommentItem } from '@/components/Comments';
 import {
   CheckIcon,
   ChevronDownIcon,
@@ -61,9 +62,9 @@ import {
   YouTubeIcon,
   ZoomInIcon,
   ZoomOutIcon,
-} from "@/components/icons";
-import { UploadModal } from "@/components/UploadModal";
-import { ConfirmDialog } from "@/components/ConfirmDialog";
+} from '@/components/icons';
+import { UploadModal } from '@/components/UploadModal';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 const PLATFORM_ICONS: Record<
   PlatformId,
@@ -77,8 +78,8 @@ const PLATFORM_ICONS: Record<
 };
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
-const SUPPORTED_TYPES = ["image/png", "image/jpeg", "image/webp"];
-type SaveState = "idle" | "saving" | "saved" | "error";
+const SUPPORTED_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
 export function Workspace({
   project: initialProject,
@@ -107,14 +108,14 @@ export function Workspace({
   );
   const [device, setDevice] = useState<DeviceMode>(initialDevice);
   const [ctx, setCtx] = useState<string>(initialContext);
-  const [ytTheme, setYtTheme] = useState<PreviewTheme>("dark");
+  const [ytTheme, setYtTheme] = useState<PreviewTheme>('dark');
   const [brandOpen, setBrandOpen] = useState(false);
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
-  const [fit, setFit] = useState<FitMode>("crop");
+  const [fit, setFit] = useState<FitMode>('crop');
   const [zoom, setZoom] = useState(1);
   const [presenting, setPresenting] = useState(false);
-  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [saveState, setSaveState] = useState<SaveState>('idle');
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -125,15 +126,15 @@ export function Workspace({
   const [adjustOpen, setAdjustOpen] = useState(false);
   const [adj, setAdj] = useState<CropAdjustment>({ x: 0, y: 0, scale: 1 });
   const [adjDirty, setAdjDirty] = useState(false);
-  const [
-    confirmAction,
-    setConfirmAction,
-  ] = useState<{ kind: "delete" | "replace"; variant: VariantView } | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{
+    kind: 'delete' | 'replace';
+    variant: VariantView;
+  } | null>(null);
   const [selectedShareId, setSelectedShareId] = useState<string | null>(null);
   const [comments, setComments] = useState<CommentItem[] | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [renameFor, setRenameFor] = useState<string | null>(null);
-  const [renameValue, setRenameValue] = useState("");
+  const [renameValue, setRenameValue] = useState('');
   const [dragOver, setDragOver] = useState(false);
   const [toasts, setToasts] = useState<
     Array<{ id: number; message: string; error?: boolean }>
@@ -156,15 +157,15 @@ export function Workspace({
     () => ({
       name: project.brandName || project.title,
       handle: project.brandHandle
-        ? project.brandHandle.startsWith("@")
+        ? project.brandHandle.startsWith('@')
           ? project.brandHandle
-          : "@" + project.brandHandle
-        : "@" +
+          : '@' + project.brandHandle
+        : '@' +
           project.title
             .toLowerCase()
-            .replace(/[^a-z0-9]+/g, "")
+            .replace(/[^a-z0-9]+/g, '')
             .slice(0, 20),
-      tagline: project.brandTagline || project.description || "",
+      tagline: project.brandTagline || project.description || '',
       logoUrl: project.logoAssetId
         ? `/api/assets/${project.logoAssetId}`
         : null,
@@ -178,15 +179,15 @@ export function Workspace({
   // Project switcher (lazy-loads the list while open).
   useEffect(() => {
     if (!switcherOpen) return;
-    api<{ projects: ProjectSummary[] }>("/api/projects")
+    api<{ projects: ProjectSummary[] }>('/api/projects')
       .then((d) => setProjects(d.projects))
       .catch(() => setProjects([]));
     const onDoc = (e: MouseEvent) => {
       const el = switcherRef.current;
       if (el && !el.contains(e.target as Node)) setSwitcherOpen(false);
     };
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
   }, [switcherOpen]);
 
   const toast = useCallback((message: string, error = false) => {
@@ -200,22 +201,22 @@ export function Workspace({
 
   const newProject = useCallback(async () => {
     setSwitcherOpen(false);
-    router.push("/start");
+    router.push('/start');
   }, [router]);
 
   // ---------- save-state wrapper ----------
   const withSave = useCallback(
     async (run: () => Promise<unknown>) => {
-      setSaveState("saving");
+      setSaveState('saving');
       try {
         await run();
         failedSaveRef.current = null;
-        setSaveState("saved");
+        setSaveState('saved');
       } catch (e) {
         failedSaveRef.current = () => withSave(run);
-        setSaveState("error");
+        setSaveState('error');
         toast(
-          e instanceof Error ? e.message : "Save failed. Please try again.",
+          e instanceof Error ? e.message : 'Save failed. Please try again.',
           true,
         );
       }
@@ -261,9 +262,12 @@ export function Workspace({
         [platform]: next,
       };
       withSave(() =>
-        patchJson<{ variant: VariantView }>(`/api/variants/${activeVariant.id}`, {
-          adjustments,
-        }).then(({ variant }) => {
+        patchJson<{ variant: VariantView }>(
+          `/api/variants/${activeVariant.id}`,
+          {
+            adjustments,
+          },
+        ).then(({ variant }) => {
           setVariants((vs) =>
             vs.map((v) => (v.id === variant.id ? variant : v)),
           );
@@ -290,8 +294,8 @@ export function Workspace({
         patchJson(`/api/projects/${project.id}`, { lastDevice: next }),
       );
       const url = new URL(window.location.href);
-      url.searchParams.set("device", next);
-      window.history.replaceState(null, "", url.toString());
+      url.searchParams.set('device', next);
+      window.history.replaceState(null, '', url.toString());
     },
     [device, project.id, withSave],
   );
@@ -304,8 +308,8 @@ export function Workspace({
         patchJson(`/api/projects/${project.id}`, { lastContext: next }),
       );
       const url = new URL(window.location.href);
-      url.searchParams.set("context", next);
-      window.history.replaceState(null, "", url.toString());
+      url.searchParams.set('context', next);
+      window.history.replaceState(null, '', url.toString());
     },
     [ctx, project.id, withSave],
   );
@@ -348,13 +352,13 @@ export function Workspace({
       setUploadError(null);
       if (!(SUPPORTED_TYPES as string[]).includes(file.type)) {
         setUploadError(
-          "Unsupported file type. Please upload a PNG, JPEG or WebP image.",
+          'Unsupported file type. Please upload a PNG, JPEG or WebP image.',
         );
         return;
       }
       if (file.size > MAX_UPLOAD_BYTES) {
         setUploadError(
-          "That image is larger than 10 MB. Please upload a smaller file.",
+          'That image is larger than 10 MB. Please upload a smaller file.',
         );
         return;
       }
@@ -362,9 +366,9 @@ export function Workspace({
       try {
         const dims = await readDimensions(file);
         const form = new FormData();
-        form.append("file", file);
-        form.append("width", String(dims.width));
-        form.append("height", String(dims.height));
+        form.append('file', file);
+        form.append('width', String(dims.width));
+        form.append('height', String(dims.height));
         const { variant } = await postForm<{ variant: VariantView }>(
           `/api/projects/${project.id}/variants`,
           form,
@@ -372,13 +376,13 @@ export function Workspace({
         setVariants((vs) => [...vs, variant]);
         setActiveVariantId(variant.id);
         setProject((p) => ({ ...p, activeVariantId: variant.id }));
-        setSaveState("saved");
+        setSaveState('saved');
         toast(`“${variant.name}” added as a new variant.`);
       } catch (e) {
         setUploadError(
           e instanceof ApiError
             ? e.message
-            : "The upload failed. Please try again.",
+            : 'The upload failed. Please try again.',
         );
       } finally {
         setUploading(false);
@@ -394,13 +398,13 @@ export function Workspace({
       setUploadError(null);
       if (!(SUPPORTED_TYPES as string[]).includes(file.type)) {
         setUploadError(
-          "Unsupported file type. Please upload a PNG, JPEG or WebP image.",
+          'Unsupported file type. Please upload a PNG, JPEG or WebP image.',
         );
         return;
       }
       if (file.size > MAX_UPLOAD_BYTES) {
         setUploadError(
-          "That image is larger than 10 MB. Please upload a smaller file.",
+          'That image is larger than 10 MB. Please upload a smaller file.',
         );
         return;
       }
@@ -408,21 +412,21 @@ export function Workspace({
       try {
         const dims = await readDimensions(file);
         const form = new FormData();
-        form.append("file", file);
-        form.append("width", String(dims.width));
-        form.append("height", String(dims.height));
+        form.append('file', file);
+        form.append('width', String(dims.width));
+        form.append('height', String(dims.height));
         const { variant } = await postForm<{ variant: VariantView }>(
           `/api/variants/${variantId}/replace`,
           form,
         );
         setVariants((vs) => vs.map((v) => (v.id === variant.id ? variant : v)));
-        setSaveState("saved");
+        setSaveState('saved');
         toast(`“${variant.name}” image replaced.`);
       } catch (e) {
         setUploadError(
           e instanceof ApiError
             ? e.message
-            : "The replacement failed. Please try again.",
+            : 'The replacement failed. Please try again.',
         );
       } finally {
         setUploading(false);
@@ -466,7 +470,7 @@ export function Workspace({
           });
         }),
       );
-      toast("Variant removed.");
+      toast('Variant removed.');
     },
     [activeVariantId, project.id, toast, withSave],
   );
@@ -523,7 +527,7 @@ export function Workspace({
   // ---------- keyboard shortcuts ----------
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
+      if (e.key !== 'Escape') return;
       if (modalOpen) return; // modal handles its own Escape
       if (railDrawer || commentsDrawer) {
         setRailDrawer(false);
@@ -533,33 +537,33 @@ export function Workspace({
       setMenuFor(null);
       if (presenting) setPresenting(false);
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, [modalOpen, railDrawer, commentsDrawer, presenting]);
 
   // ---------- rendering ----------
   const def = platformDef;
   const placement = contextLabel(platform, ctx);
   const stageTitle = `${def.label} · ${placement}`;
-  const stageSub = `${device === "desktop" ? "Desktop" : "Mobile"} · ${project.title}${
-    activeVariant ? ` · ${activeVariant.name}` : ""
+  const stageSub = `${device === 'desktop' ? 'Desktop' : 'Mobile'} · ${project.title}${
+    activeVariant ? ` · ${activeVariant.name}` : ''
   }`;
 
   const saveIndicator = (
     <span
-      className={`save-state ${saveState === "saved" ? "saved" : ""} ${saveState === "error" ? "error" : ""}`}
-      role={saveState === "error" ? "alert" : "status"}
+      className={`save-state ${saveState === 'saved' ? 'saved' : ''} ${saveState === 'error' ? 'error' : ''}`}
+      role={saveState === 'error' ? 'alert' : 'status'}
     >
-      {saveState === "saving" ? (
+      {saveState === 'saving' ? (
         <>
           <span className="spinner" aria-hidden="true" /> Saving…
         </>
-      ) : saveState === "error" ? (
+      ) : saveState === 'error' ? (
         <button
           className="btn-icon"
           onClick={retrySave}
           aria-label="Retry save"
-          style={{ padding: 0, width: "auto", gap: 6, color: "var(--danger)" }}
+          style={{ padding: 0, width: 'auto', gap: 6, color: 'var(--danger)' }}
         >
           ⚠ Save failed — retry
         </button>
@@ -593,13 +597,13 @@ export function Workspace({
           ref={replaceInputRef}
           type="file"
           accept="image/png,image/jpeg,image/webp"
-          style={{ display: "none" }}
+          style={{ display: 'none' }}
           aria-hidden="true"
           tabIndex={-1}
           onChange={(e) => {
             const f = e.target.files?.[0];
             if (f) replaceImage(f);
-            e.target.value = "";
+            e.target.value = '';
           }}
         />
         {uploadError && (
@@ -609,7 +613,11 @@ export function Workspace({
         )}
       </div>
 
-      <div className="rail-section" role="navigation" aria-label="Workspace views">
+      <div
+        className="rail-section"
+        role="navigation"
+        aria-label="Workspace views"
+      >
         <h3 className="rail-heading">Views</h3>
         <button
           className="nav-item"
@@ -642,9 +650,9 @@ export function Workspace({
           return (
             <button
               key={p}
-              className={`nav-item ${p === platform ? "active" : ""}`}
+              className={`nav-item ${p === platform ? 'active' : ''}`}
               onClick={() => switchPlatform(p)}
-              aria-current={p === platform ? "page" : undefined}
+              aria-current={p === platform ? 'page' : undefined}
             >
               <span className="nav-icon">
                 <Icon size={18} />
@@ -661,9 +669,9 @@ export function Workspace({
           {PLATFORMS[platform].contexts.map((c) => (
             <button
               key={c.id}
-              className={`nav-item ${c.id === ctx ? "active" : ""}`}
+              className={`nav-item ${c.id === ctx ? 'active' : ''}`}
               onClick={() => switchContext(c.id)}
-              aria-current={c.id === ctx ? "true" : undefined}
+              aria-current={c.id === ctx ? 'true' : undefined}
             >
               <span className="nav-platform-label">{c.label}</span>
             </button>
@@ -675,16 +683,16 @@ export function Workspace({
         <h3 className="rail-heading">Device</h3>
         <div className="seg" role="group" aria-label="Device mode">
           <button
-            className={`seg-btn ${device === "desktop" ? "active" : ""}`}
-            onClick={() => switchDevice("desktop")}
-            aria-pressed={device === "desktop"}
+            className={`seg-btn ${device === 'desktop' ? 'active' : ''}`}
+            onClick={() => switchDevice('desktop')}
+            aria-pressed={device === 'desktop'}
           >
             <DesktopIcon size={15} /> Desktop
           </button>
           <button
-            className={`seg-btn ${device === "mobile" ? "active" : ""}`}
-            onClick={() => switchDevice("mobile")}
-            aria-pressed={device === "mobile"}
+            className={`seg-btn ${device === 'mobile' ? 'active' : ''}`}
+            onClick={() => switchDevice('mobile')}
+            aria-pressed={device === 'mobile'}
           >
             <MobileIcon size={15} /> Mobile
           </button>
@@ -693,9 +701,9 @@ export function Workspace({
 
       <div className="rail-section">
         <h3 className="rail-heading">
-          Creative variants{" "}
+          Creative variants{' '}
           {variants.length > 0 && (
-            <span style={{ fontWeight: 400, textTransform: "none" }}>
+            <span style={{ fontWeight: 400, textTransform: 'none' }}>
               · {variants.length}
             </span>
           )}
@@ -708,10 +716,10 @@ export function Workspace({
         {variants.map((v) => (
           <div
             key={v.id}
-            className={`variant-card ${v.id === activeVariantId ? "selected" : ""}`}
+            className={`variant-card ${v.id === activeVariantId ? 'selected' : ''}`}
             onClick={() => selectVariant(v.id)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
+              if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
                 selectVariant(v.id);
               }
@@ -728,7 +736,7 @@ export function Workspace({
               {renameFor === v.id ? (
                 <input
                   className="input"
-                  style={{ padding: "4px 8px", fontSize: 12.5 }}
+                  style={{ padding: '4px 8px', fontSize: 12.5 }}
                   value={renameValue}
                   autoFocus
                   maxLength={80}
@@ -739,11 +747,11 @@ export function Workspace({
                     setRenameFor(null);
                   }}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") {
+                    if (e.key === 'Enter') {
                       renameVariant(v.id, renameValue);
                       setRenameFor(null);
                     }
-                    if (e.key === "Escape") setRenameFor(null);
+                    if (e.key === 'Escape') setRenameFor(null);
                   }}
                   aria-label="Variant name"
                 />
@@ -753,13 +761,13 @@ export function Workspace({
                   <span className="variant-meta truncate">
                     {v.asset
                       ? `${formatDimensions(v.asset.width, v.asset.height)} · ${formatBytes(v.asset.bytes)}`
-                      : "image"}
+                      : 'image'}
                   </span>
                 </>
               )}
             </span>
             <span
-              style={{ position: "relative" }}
+              style={{ position: 'relative' }}
               onClick={(e) => e.stopPropagation()}
             >
               <button
@@ -786,7 +794,7 @@ export function Workspace({
                     role="menuitem"
                     onClick={() => {
                       replaceTargetRef.current = v.id;
-                      setConfirmAction({ kind: "replace", variant: v });
+                      setConfirmAction({ kind: 'replace', variant: v });
                       setMenuFor(null);
                     }}
                   >
@@ -796,7 +804,7 @@ export function Workspace({
                     role="menuitem"
                     className="danger"
                     onClick={() => {
-                      setConfirmAction({ kind: "delete", variant: v });
+                      setConfirmAction({ kind: 'delete', variant: v });
                       setMenuFor(null);
                     }}
                   >
@@ -869,7 +877,7 @@ export function Workspace({
 
   return (
     <div
-      className={`app ${presenting ? "presenting" : ""} ${!commentsVisible ? "comments-hidden" : ""} ${adjustOpen ? "adjusting" : ""}`}
+      className={`app ${presenting ? 'presenting' : ''} ${!commentsVisible ? 'comments-hidden' : ''} ${adjustOpen ? 'adjusting' : ''}`}
     >
       <header className="topbar">
         <button
@@ -879,16 +887,16 @@ export function Workspace({
         >
           <MenuIcon size={18} />
         </button>
-        <span className="brand">
+        <Link href="/" className="brand" style={{ textDecoration: 'none' }}>
           <span className="brand-mark" aria-hidden="true" />
-          Preview Lab
-        </span>
+          Practiscale Preview Lab
+        </Link>
         <span className="topbar-divider" aria-hidden="true" />
         <div
           style={{
-            position: "relative",
-            display: "flex",
-            alignItems: "center",
+            position: 'relative',
+            display: 'flex',
+            alignItems: 'center',
             gap: 2,
             minWidth: 0,
           }}
@@ -905,7 +913,7 @@ export function Workspace({
             }
             onBlur={(e) => renameProject(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter") titleRef.current?.blur();
+              if (e.key === 'Enter') titleRef.current?.blur();
             }}
           />
           <button
@@ -925,13 +933,13 @@ export function Workspace({
                 {projects === null && (
                   <div
                     className="skeleton"
-                    style={{ height: 36, margin: "4px 8px" }}
+                    style={{ height: 36, margin: '4px 8px' }}
                   />
                 )}
                 {projects?.map((p) => (
                   <button
                     key={p.id}
-                    className={`ps-item ${p.id === project.id ? "on" : ""}`}
+                    className={`ps-item ${p.id === project.id ? 'on' : ''}`}
                     role="menuitem"
                     onClick={() => {
                       setSwitcherOpen(false);
@@ -961,11 +969,11 @@ export function Workspace({
           onClick={() => setCommentsVisible((visible) => !visible)}
         >
           <CommentIcon size={15} />
-          {commentsVisible ? "Hide comments" : "Show comments"}
+          {commentsVisible ? 'Hide comments' : 'Show comments'}
         </button>
         <button
           className="btn-icon mobile-only"
-          aria-label={`Open comments${comments ? ` (${comments.length})` : ""}`}
+          aria-label={`Open comments${comments ? ` (${comments.length})` : ''}`}
           onClick={() => setCommentsDrawer(true)}
         >
           <CommentIcon size={18} />
@@ -986,7 +994,7 @@ export function Workspace({
           <ShareIcon size={15} /> Share
         </button>
         <span className="avatar-placeholder" aria-hidden="true">
-          {(project.title.charAt(0) || "P").toUpperCase()}
+          {(project.title.charAt(0) || 'P').toUpperCase()}
         </span>
       </header>
 
@@ -1004,24 +1012,24 @@ export function Workspace({
             <p className="stage-sub">{stageSub}</p>
           </div>
           <div className="stage-toolbar">
-            {platform === "youtube" && (
+            {platform === 'youtube' && (
               <div
                 className="seg"
                 role="group"
                 aria-label="Simulated app theme"
               >
                 <button
-                  className={`seg-btn ${ytTheme === "dark" ? "active" : ""}`}
-                  onClick={() => setYtTheme("dark")}
-                  aria-pressed={ytTheme === "dark"}
+                  className={`seg-btn ${ytTheme === 'dark' ? 'active' : ''}`}
+                  onClick={() => setYtTheme('dark')}
+                  aria-pressed={ytTheme === 'dark'}
                   title="Dark app theme"
                 >
                   Dark
                 </button>
                 <button
-                  className={`seg-btn ${ytTheme === "light" ? "active" : ""}`}
-                  onClick={() => setYtTheme("light")}
-                  aria-pressed={ytTheme === "light"}
+                  className={`seg-btn ${ytTheme === 'light' ? 'active' : ''}`}
+                  onClick={() => setYtTheme('light')}
+                  aria-pressed={ytTheme === 'light'}
                   title="Light app theme"
                 >
                   Light
@@ -1030,17 +1038,17 @@ export function Workspace({
             )}
             <div className="seg" role="group" aria-label="Image fit">
               <button
-                className={`seg-btn ${fit === "crop" ? "active" : ""}`}
-                onClick={() => setFit("crop")}
-                aria-pressed={fit === "crop"}
+                className={`seg-btn ${fit === 'crop' ? 'active' : ''}`}
+                onClick={() => setFit('crop')}
+                aria-pressed={fit === 'crop'}
                 title="Context crop — the platform's natural placement ratio"
               >
                 Crop
               </button>
               <button
-                className={`seg-btn ${fit === "contain" ? "active" : ""}`}
-                onClick={() => setFit("contain")}
-                aria-pressed={fit === "contain"}
+                className={`seg-btn ${fit === 'contain' ? 'active' : ''}`}
+                onClick={() => setFit('contain')}
+                aria-pressed={fit === 'contain'}
                 title="Fit — show the whole image inside the context"
               >
                 Fit
@@ -1079,14 +1087,16 @@ export function Workspace({
               title="Reset zoom and fit"
               onClick={() => {
                 setZoom(1);
-                setFit("crop");
+                setFit('crop');
               }}
             >
               <ResetIcon size={15} />
             </button>
             <button
-              className={`btn-icon ${adjustOpen ? "on" : ""}`}
-              aria-label={adjustOpen ? "Close adjust panel" : "Adjust image crop"}
+              className={`btn-icon ${adjustOpen ? 'on' : ''}`}
+              aria-label={
+                adjustOpen ? 'Close adjust panel' : 'Adjust image crop'
+              }
               title="Adjust image crop"
               aria-pressed={adjustOpen}
               disabled={!activeVariant}
@@ -1098,10 +1108,10 @@ export function Workspace({
               className="btn-icon"
               aria-label={
                 presenting
-                  ? "Exit presentation mode"
-                  : "Enter presentation mode"
+                  ? 'Exit presentation mode'
+                  : 'Enter presentation mode'
               }
-              title={presenting ? "Exit presentation" : "Presentation mode"}
+              title={presenting ? 'Exit presentation' : 'Presentation mode'}
               aria-pressed={presenting}
               onClick={() => setPresenting((p) => !p)}
             >
@@ -1111,7 +1121,7 @@ export function Workspace({
         </div>
 
         <div
-          className={`stage-canvas ${dragOver ? "dragover" : ""}`}
+          className={`stage-canvas ${dragOver ? 'dragover' : ''}`}
           onDragOver={(e) => {
             e.preventDefault();
             setDragOver(true);
@@ -1131,7 +1141,7 @@ export function Workspace({
               </span>
               <h3>Upload an image to preview it here</h3>
               <p>
-                See how {def.label} would present your creative in a{" "}
+                See how {def.label} would present your creative in a{' '}
                 {placement.toLowerCase()} before publishing.
               </p>
               <button
@@ -1139,8 +1149,8 @@ export function Workspace({
                 onClick={() => setUploadModalOpen(true)}
                 disabled={uploading}
               >
-                <UploadIcon size={16} />{" "}
-                {uploading ? "Uploading…" : "Upload image"}
+                <UploadIcon size={16} />{' '}
+                {uploading ? 'Uploading…' : 'Upload image'}
               </button>
               <p className="empty-note">
                 PNG, JPEG or WebP · up to 10 MB · images only in MVP
@@ -1152,14 +1162,16 @@ export function Workspace({
                 platform={platform}
                 contextId={ctx}
                 device={device}
-                theme={platform === "youtube" ? ytTheme : undefined}
+                theme={platform === 'youtube' ? ytTheme : undefined}
                 context={{
                   projectName: project.title,
-                  variantName: activeVariant?.name || "Creative",
+                  variantName: activeVariant?.name || 'Creative',
                   imageUrl,
                   fit,
                   brand,
-                  adjustment: adjustOpen ? adj : activeVariant?.adjustments?.[platform],
+                  adjustment: adjustOpen
+                    ? adj
+                    : activeVariant?.adjustments?.[platform],
                 }}
               />
             </div>
@@ -1182,14 +1194,25 @@ export function Workspace({
           </div>
           <div className="adjust-body">
             <p className="adjust-hint">
-              Nudge how the creative is cropped inside the{' '}
-              {def.label} {placement.toLowerCase()}. Changes preview live and
-              apply per platform.
+              Nudge how the creative is cropped inside the {def.label}{' '}
+              {placement.toLowerCase()}. Changes preview live and apply per
+              platform.
             </p>
             <div className="adjust-field">
-              <label className="field-label" htmlFor="adj-x">Position X</label>
+              <label className="field-label" htmlFor="adj-x">
+                Position X
+              </label>
               <div className="adjust-stepper">
-                <button className="btn-icon" aria-label="Decrease X" onClick={() => { setAdj((a) => ({ ...a, x: Math.max(-50, a.x - 5) })); setAdjDirty(true); }}>−</button>
+                <button
+                  className="btn-icon"
+                  aria-label="Decrease X"
+                  onClick={() => {
+                    setAdj((a) => ({ ...a, x: Math.max(-50, a.x - 5) }));
+                    setAdjDirty(true);
+                  }}
+                >
+                  −
+                </button>
                 <input
                   id="adj-x"
                   type="number"
@@ -1198,18 +1221,41 @@ export function Workspace({
                   max={50}
                   value={adj.x}
                   onChange={(e) => {
-                    const v = Math.max(-50, Math.min(50, Number(e.target.value) || 0));
+                    const v = Math.max(
+                      -50,
+                      Math.min(50, Number(e.target.value) || 0),
+                    );
                     setAdj((a) => ({ ...a, x: v }));
                     setAdjDirty(true);
                   }}
                 />
-                <button className="btn-icon" aria-label="Increase X" onClick={() => { setAdj((a) => ({ ...a, x: Math.min(50, a.x + 5) })); setAdjDirty(true); }}>+</button>
+                <button
+                  className="btn-icon"
+                  aria-label="Increase X"
+                  onClick={() => {
+                    setAdj((a) => ({ ...a, x: Math.min(50, a.x + 5) }));
+                    setAdjDirty(true);
+                  }}
+                >
+                  +
+                </button>
               </div>
             </div>
             <div className="adjust-field">
-              <label className="field-label" htmlFor="adj-y">Position Y</label>
+              <label className="field-label" htmlFor="adj-y">
+                Position Y
+              </label>
               <div className="adjust-stepper">
-                <button className="btn-icon" aria-label="Decrease Y" onClick={() => { setAdj((a) => ({ ...a, y: Math.max(-50, a.y - 5) })); setAdjDirty(true); }}>−</button>
+                <button
+                  className="btn-icon"
+                  aria-label="Decrease Y"
+                  onClick={() => {
+                    setAdj((a) => ({ ...a, y: Math.max(-50, a.y - 5) }));
+                    setAdjDirty(true);
+                  }}
+                >
+                  −
+                </button>
                 <input
                   id="adj-y"
                   type="number"
@@ -1218,16 +1264,30 @@ export function Workspace({
                   max={50}
                   value={adj.y}
                   onChange={(e) => {
-                    const v = Math.max(-50, Math.min(50, Number(e.target.value) || 0));
+                    const v = Math.max(
+                      -50,
+                      Math.min(50, Number(e.target.value) || 0),
+                    );
                     setAdj((a) => ({ ...a, y: v }));
                     setAdjDirty(true);
                   }}
                 />
-                <button className="btn-icon" aria-label="Increase Y" onClick={() => { setAdj((a) => ({ ...a, y: Math.min(50, a.y + 5) })); setAdjDirty(true); }}>+</button>
+                <button
+                  className="btn-icon"
+                  aria-label="Increase Y"
+                  onClick={() => {
+                    setAdj((a) => ({ ...a, y: Math.min(50, a.y + 5) }));
+                    setAdjDirty(true);
+                  }}
+                >
+                  +
+                </button>
               </div>
             </div>
             <div className="adjust-field">
-              <label className="field-label" htmlFor="adj-scale">Scale {Math.round(adj.scale * 100)}%</label>
+              <label className="field-label" htmlFor="adj-scale">
+                Scale {Math.round(adj.scale * 100)}%
+              </label>
               <input
                 id="adj-scale"
                 type="range"
@@ -1243,7 +1303,13 @@ export function Workspace({
                 }}
               />
             </div>
-            <button className="adjust-reset" onClick={() => { setAdj({ x: 0, y: 0, scale: 1 }); setAdjDirty(true); }}>
+            <button
+              className="adjust-reset"
+              onClick={() => {
+                setAdj({ x: 0, y: 0, scale: 1 });
+                setAdjDirty(true);
+              }}
+            >
               Reset
             </button>
             <button
@@ -1293,7 +1359,7 @@ export function Workspace({
             className="drawer right"
             role="dialog"
             aria-label="Review comments"
-            style={{ display: "flex", flexDirection: "column" }}
+            style={{ display: 'flex', flexDirection: 'column' }}
           >
             <div className="drawer-head">
               <b>Comments</b>
@@ -1308,8 +1374,8 @@ export function Workspace({
             <div
               style={{
                 flex: 1,
-                display: "flex",
-                flexDirection: "column",
+                display: 'flex',
+                flexDirection: 'column',
                 minHeight: 0,
               }}
             >
@@ -1337,7 +1403,7 @@ export function Workspace({
             setVariants((vs) => [...vs, variant]);
             setActiveVariantId(variant.id);
             setProject((p) => ({ ...p, activeVariantId: variant.id }));
-            setSaveState("saved");
+            setSaveState('saved');
             toast(`“${variant.name}” added as a new variant.`);
           }}
         />
@@ -1345,15 +1411,19 @@ export function Workspace({
 
       {confirmAction && (
         <ConfirmDialog
-          title={confirmAction.kind === "delete" ? "Delete variant?" : "Replace image?"}
+          title={
+            confirmAction.kind === 'delete'
+              ? 'Delete variant?'
+              : 'Replace image?'
+          }
           body={
-            confirmAction.kind === "delete"
+            confirmAction.kind === 'delete'
               ? `Are you sure you want to delete “${confirmAction.variant.name}”? This action cannot be undone.`
               : `Replace the source image for “${confirmAction.variant.name}”? The current image will be removed and the variant keeps its name.`
           }
-          confirmLabel={confirmAction.kind === "delete" ? "Delete" : "Replace"}
+          confirmLabel={confirmAction.kind === 'delete' ? 'Delete' : 'Replace'}
           onConfirm={() => {
-            if (confirmAction.kind === "delete") {
+            if (confirmAction.kind === 'delete') {
               removeVariant(confirmAction.variant.id);
             } else {
               replaceTargetRef.current = confirmAction.variant.id;
@@ -1370,11 +1440,11 @@ export function Workspace({
           variants={variants}
           shares={shares}
           current={{
-            variantId: activeVariantId || "",
+            variantId: activeVariantId || '',
             platform,
             contextId: ctx,
             device,
-            theme: platform === "youtube" ? ytTheme : undefined,
+            theme: platform === 'youtube' ? ytTheme : undefined,
           }}
           onClose={() => setModalOpen(false)}
           onSharesChanged={(next) => setShares(next)}
@@ -1390,7 +1460,7 @@ export function Workspace({
       {presenting && (
         <button
           className="btn btn-secondary btn-sm"
-          style={{ position: "fixed", bottom: 16, right: 16, zIndex: 80 }}
+          style={{ position: 'fixed', bottom: 16, right: 16, zIndex: 80 }}
           onClick={() => setPresenting(false)}
         >
           <CloseIcon size={14} /> Exit presentation
@@ -1401,7 +1471,7 @@ export function Workspace({
         {toasts.map((t) => (
           <div
             key={t.id}
-            className={`toast ${t.error ? "error" : ""}`}
+            className={`toast ${t.error ? 'error' : ''}`}
             role="status"
           >
             {t.message}
