@@ -1,4 +1,4 @@
-# Preview Lab — Social Media Preview Platform (MVP)
+# Practiscale Preview Lab — Social Media Preview Platform (MVP)
 
 A browser-based social-media preview and collaborative review platform, implemented from the
 approved PRD v1.1, SRS v1.0, Architecture v1.1, UI/UX v1.0 and Development Document v1.0.
