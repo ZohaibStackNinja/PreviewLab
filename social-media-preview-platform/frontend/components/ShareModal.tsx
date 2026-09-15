@@ -1,10 +1,22 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { DeviceMode, PlatformId, PreviewTheme, ShareView, VariantView } from '@/lib/types';
+import type {
+  DeviceMode,
+  PlatformId,
+  PreviewTheme,
+  ShareView,
+  VariantView,
+} from '@/lib/types';
 import { postJson, ApiError } from '@/lib/client';
 import { formatDateTime, timeUntil } from '@/lib/format';
-import { PLATFORMS, contextLabel } from '@/lib/platforms';
+import {
+  PLATFORMS,
+  PLATFORM_IDS,
+  contextLabel,
+  defaultContext,
+  isValidContext,
+} from '@/lib/platforms';
 import {
   CheckIcon,
   CloseIcon,
@@ -23,8 +35,10 @@ const EXPIRY_CHOICES = [
 ];
 
 function StatusBadge({ status }: { status: ShareView['status'] }) {
-  if (status === 'ACTIVE') return <span className="badge badge-active">Active link</span>;
-  if (status === 'EXPIRED') return <span className="badge badge-expired">Expired</span>;
+  if (status === 'ACTIVE')
+    return <span className="badge badge-active">Active link</span>;
+  if (status === 'EXPIRED')
+    return <span className="badge badge-expired">Expired</span>;
   return <span className="badge badge-revoked">Revoked</span>;
 }
 
@@ -51,32 +65,106 @@ export function ShareModal({
   onSharesChanged: (shares: ShareView[]) => void;
   onViewComments: (shareId: string) => void;
 }) {
+  // Target section state inside the modal (defaults to current workspace state)
+  const [selectedPlatform, setSelectedPlatform] = useState<PlatformId>(
+    current.platform,
+  );
+  const [selectedContext, setSelectedContext] = useState<string>(
+    current.contextId,
+  );
+  const [selectedDevice, setSelectedDevice] = useState<DeviceMode>(
+    current.device,
+  );
+  const [selectedVariantId, setSelectedVariantId] = useState<string>(
+    current.variantId,
+  );
+  const [selectedShareId, setSelectedShareId] = useState<string | null>(null);
+
   const [expiryChoice, setExpiryChoice] = useState(24);
   const [customExpiry, setCustomExpiry] = useState('');
   const [creating, setCreating] = useState(false);
+  const [generatingBatch, setGeneratingBatch] = useState(false);
+  const [creatingNew, setCreatingNew] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [justCreated, setJustCreated] = useState<ShareView | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [confirmingRevoke, setConfirmingRevoke] = useState<string | null>(null);
   const urlInputRef = useRef<HTMLInputElement>(null);
 
-  // Share matching the exact current preview state (variant+platform+context+device).
-  const currentShare = useMemo(
+  const handlePlatformChange = (p: PlatformId) => {
+    setSelectedPlatform(p);
+    if (!isValidContext(p, selectedContext)) {
+      setSelectedContext(defaultContext(p));
+    }
+    setJustCreated(null);
+    setSelectedShareId(null);
+    setCreatingNew(false);
+    setError(null);
+  };
+
+  // Active shares matching the selected section (variant + platform + context + device)
+  const sectionActiveShares = useMemo(
     () =>
-      shares.find(
+      shares.filter(
         (s) =>
-          s.variantId === current.variantId &&
-          s.platform === current.platform &&
-          s.contextId === current.contextId &&
-          s.device === current.device,
-      ) || null,
-    [shares, current],
+          s.status === 'ACTIVE' &&
+          s.platform === selectedPlatform &&
+          s.contextId === selectedContext &&
+          s.device === selectedDevice &&
+          s.variantId === selectedVariantId,
+      ),
+    [
+      shares,
+      selectedPlatform,
+      selectedContext,
+      selectedDevice,
+      selectedVariantId,
+    ],
   );
 
-  const activeCurrentShare = currentShare && currentShare.status === 'ACTIVE' ? currentShare : null;
+  // Active share to display in primary input
+  const activeShare = useMemo(() => {
+    if (
+      justCreated &&
+      justCreated.platform === selectedPlatform &&
+      justCreated.contextId === selectedContext &&
+      justCreated.device === selectedDevice &&
+      justCreated.variantId === selectedVariantId &&
+      justCreated.status === 'ACTIVE'
+    ) {
+      return justCreated;
+    }
+    if (selectedShareId) {
+      const found = shares.find(
+        (s) => s.id === selectedShareId && s.status === 'ACTIVE',
+      );
+      if (found) return found;
+    }
+    return sectionActiveShares[0] || null;
+  }, [
+    justCreated,
+    selectedPlatform,
+    selectedContext,
+    selectedDevice,
+    selectedVariantId,
+    selectedShareId,
+    shares,
+    sectionActiveShares,
+  ]);
+
+  const toAbsoluteUrl = (url: string | null | undefined): string => {
+    if (!url) return '';
+    if (url.startsWith('http')) return url;
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    return `${origin}${url.startsWith('/') ? '' : '/'}${url}`;
+  };
+
+  const shareDisplayUrl = useMemo(
+    () => toAbsoluteUrl(activeShare?.url),
+    [activeShare],
+  );
 
   useEffect(() => {
-    // Move focus into the modal (A11Y: modal open moves focus).
     urlInputRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -86,6 +174,7 @@ export function ShareModal({
   }, [onClose]);
 
   const copy = async (url: string) => {
+    if (!url) return;
     try {
       await navigator.clipboard.writeText(url);
     } catch {
@@ -104,11 +193,14 @@ export function ShareModal({
     setError(null);
     let body: Record<string, unknown>;
     const base = {
-      variantId: current.variantId,
-      platform: current.platform,
-      context: current.contextId,
-      device: current.device,
-      ...(current.theme ? { theme: current.theme } : {}),
+      variantId: selectedVariantId,
+      platform: selectedPlatform,
+      context: selectedContext,
+      device: selectedDevice,
+      ...(selectedPlatform === 'youtube' && current.theme
+        ? { theme: current.theme }
+        : {}),
+      allowMultiple: true,
     };
     if (expiryChoice === 0) {
       if (!customExpiry) {
@@ -126,27 +218,88 @@ export function ShareModal({
     }
     setCreating(true);
     try {
-      const { share } = await postJson<{ share: ShareView }>(`/api/projects/${projectId}/shares`, body);
+      const { share } = await postJson<{ share: ShareView }>(
+        `/api/projects/${projectId}/shares`,
+        body,
+      );
       setJustCreated(share);
-      onSharesChanged([share, ...shares]);
+      setSelectedShareId(share.id);
+      setCreatingNew(false);
+      const exists = shares.some((s) => s.id === share.id);
+      if (exists) {
+        onSharesChanged(shares.map((s) => (s.id === share.id ? share : s)));
+      } else {
+        onSharesChanged([share, ...shares]);
+      }
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Could not create the link. Please try again.');
+      setError(
+        e instanceof ApiError
+          ? e.message
+          : 'Could not create the link. Please try again.',
+      );
     } finally {
       setCreating(false);
     }
   };
 
-  const revoke = async (id: string) => {
+  const generateAllPlatforms = async () => {
+    setError(null);
+    setGeneratingBatch(true);
     try {
-      const { share } = await postJson<{ share: ShareView }>(`/api/shares/${id}/revoke`, {});
-      onSharesChanged(shares.map((s) => (s.id === id ? share : s)));
-      setConfirmingRevoke(null);
+      const results = await Promise.all(
+        PLATFORM_IDS.map((p) =>
+          postJson<{ share: ShareView }>(`/api/projects/${projectId}/shares`, {
+            variantId: selectedVariantId,
+            platform: p,
+            context: defaultContext(p),
+            device: selectedDevice,
+            expiresInHours: expiryChoice === 0 ? 24 : expiryChoice,
+            allowMultiple: true,
+          }),
+        ),
+      );
+      const newShares = results.map((r) => r.share);
+      const existingIds = new Set(newShares.map((s) => s.id));
+      onSharesChanged([
+        ...newShares,
+        ...shares.filter((s) => !existingIds.has(s.id)),
+      ]);
+      const match =
+        newShares.find((s) => s.platform === selectedPlatform) || newShares[0];
+      setJustCreated(match);
+      setSelectedShareId(match.id);
+      setCreatingNew(false);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Could not revoke the link.');
+      setError(
+        e instanceof ApiError
+          ? e.message
+          : 'Could not generate links for all platforms.',
+      );
+    } finally {
+      setGeneratingBatch(false);
     }
   };
 
-  const variantName = (id: string) => variants.find((v) => v.id === id)?.name || 'Variant';
+  const revoke = async (id: string) => {
+    try {
+      const { share } = await postJson<{ share: ShareView }>(
+        `/api/shares/${id}/revoke`,
+        {},
+      );
+      onSharesChanged(shares.map((s) => (s.id === id ? share : s)));
+      setConfirmingRevoke(null);
+      if (justCreated?.id === id) setJustCreated(null);
+      if (selectedShareId === id) setSelectedShareId(null);
+      setCreatingNew(false);
+    } catch (e) {
+      setError(
+        e instanceof ApiError ? e.message : 'Could not revoke the link.',
+      );
+    }
+  };
+
+  const variantName = (id: string) =>
+    variants.find((v) => v.id === id)?.name || 'Variant';
 
   return (
     <div
@@ -155,43 +308,211 @@ export function ShareModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="modal" role="dialog" aria-modal="true" aria-label="Share this preview">
+      <div
+        className="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Share this preview"
+      >
         <div className="modal-head">
           <div>
             <h2 className="modal-title">Share this preview</h2>
-            <p className="modal-sub">Anyone with the link can view and comment.</p>
+            <p className="modal-sub">
+              Anyone with the link can view and comment.
+            </p>
           </div>
-          <button className="btn-icon" aria-label="Close share dialog" onClick={onClose}>
+          <button
+            className="btn-icon"
+            aria-label="Close share dialog"
+            onClick={onClose}
+          >
             <CloseIcon size={18} />
           </button>
         </div>
 
-        {/* Current preview state */}
+        {/* Target Section Selector */}
         <div className="modal-section">
-          <div className="modal-section-title">Current preview</div>
-          <div className="share-list-item" style={{ background: 'var(--surface)' }}>
-            <div className="grow">
-              <b>
-                {PLATFORMS[current.platform].label} · {contextLabel(current.platform, current.contextId)}
-              </b>
-              <div className="share-list-meta">
-                {current.device === 'desktop' ? 'Desktop' : 'Mobile'} · {variantName(current.variantId)}
-              </div>
-            </div>
-            {activeCurrentShare && <StatusBadge status="ACTIVE" />}
+          <div
+            className="modal-section-title"
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <span>Preview Section</span>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              style={{ fontSize: 11, padding: '3px 8px' }}
+              onClick={generateAllPlatforms}
+              disabled={generatingBatch || !selectedVariantId}
+            >
+              {generatingBatch
+                ? 'Generating…'
+                : '⚡ Generate links for all 5 platforms'}
+            </button>
           </div>
 
-          {activeCurrentShare && !justCreated && (
-            <div className="share-state-row">
-              <span className="status-dot active" />
-              <span>
-                Active link · expires {formatDateTime(activeCurrentShare.expiresAt)} (
-                {timeUntil(activeCurrentShare.expiresAt)})
-              </span>
-            </div>
-          )}
+          {/* Platform Pills */}
+          <div
+            style={{
+              display: 'flex',
+              gap: 6,
+              marginBottom: 10,
+              flexWrap: 'wrap',
+            }}
+          >
+            {PLATFORM_IDS.map((p) => {
+              const isSelected = p === selectedPlatform;
+              const hasActive = shares.some(
+                (s) => s.platform === p && s.status === 'ACTIVE',
+              );
+              return (
+                <button
+                  key={p}
+                  type="button"
+                  className={`btn btn-sm ${isSelected ? 'btn-primary' : 'btn-secondary'}`}
+                  style={{
+                    padding: '4px 10px',
+                    fontSize: 12,
+                    position: 'relative',
+                  }}
+                  onClick={() => handlePlatformChange(p)}
+                >
+                  {PLATFORMS[p].label}
+                  {hasActive && (
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        width: 6,
+                        height: 6,
+                        borderRadius: '50%',
+                        background: isSelected
+                          ? 'var(--white)'
+                          : 'var(--brand)',
+                        marginLeft: 6,
+                        verticalAlign: 'middle',
+                      }}
+                      title="Has active link"
+                    />
+                  )}
+                </button>
+              );
+            })}
+          </div>
 
-          {justCreated && (
+          {/* Context, Device, Variant controls */}
+          <div
+            style={{
+              display: 'flex',
+              gap: 8,
+              alignItems: 'center',
+              marginBottom: 12,
+            }}
+          >
+            <div style={{ flex: 1 }}>
+              <select
+                className="select"
+                style={{
+                  width: '100%',
+                  fontSize: 13,
+                  height: 32,
+                  padding: '2px 8px',
+                }}
+                value={selectedContext}
+                onChange={(e) => {
+                  setSelectedContext(e.target.value);
+                  setJustCreated(null);
+                  setSelectedShareId(null);
+                  setCreatingNew(false);
+                }}
+              >
+                {PLATFORMS[selectedPlatform].contexts.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', gap: 4 }}>
+              <button
+                type="button"
+                className={`btn btn-sm ${selectedDevice === 'desktop' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ padding: '3px 8px', fontSize: 12 }}
+                onClick={() => {
+                  setSelectedDevice('desktop');
+                  setJustCreated(null);
+                  setSelectedShareId(null);
+                  setCreatingNew(false);
+                }}
+              >
+                Desktop
+              </button>
+              <button
+                type="button"
+                className={`btn btn-sm ${selectedDevice === 'mobile' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ padding: '3px 8px', fontSize: 12 }}
+                onClick={() => {
+                  setSelectedDevice('mobile');
+                  setJustCreated(null);
+                  setSelectedShareId(null);
+                  setCreatingNew(false);
+                }}
+              >
+                Mobile
+              </button>
+            </div>
+
+            {variants.length > 1 && (
+              <div style={{ flex: 1 }}>
+                <select
+                  className="select"
+                  style={{
+                    width: '100%',
+                    fontSize: 13,
+                    height: 32,
+                    padding: '2px 8px',
+                  }}
+                  value={selectedVariantId}
+                  onChange={(e) => {
+                    setSelectedVariantId(e.target.value);
+                    setJustCreated(null);
+                    setSelectedShareId(null);
+                    setCreatingNew(false);
+                  }}
+                >
+                  {variants.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+
+          {/* Current selected section summary badge */}
+          <div
+            className="share-list-item"
+            style={{ background: 'var(--surface)' }}
+          >
+            <div className="grow">
+              <b>
+                {PLATFORMS[selectedPlatform].label} ·{' '}
+                {contextLabel(selectedPlatform, selectedContext)}
+              </b>
+              <div className="share-list-meta">
+                {selectedDevice === 'desktop' ? 'Desktop' : 'Mobile'} ·{' '}
+                {variantName(selectedVariantId)}
+              </div>
+            </div>
+            {activeShare && !creatingNew && <StatusBadge status="ACTIVE" />}
+          </div>
+
+          {/* Active Link Review Box */}
+          {activeShare && !creatingNew && (
             <>
               <div className="field" style={{ marginTop: 14 }}>
                 <label className="field-label" htmlFor="share-url">
@@ -202,28 +523,38 @@ export function ShareModal({
                     id="share-url"
                     ref={urlInputRef}
                     className="input input-readonly"
-                    value={justCreated.url || ''}
+                    value={shareDisplayUrl}
                     readOnly
                     onFocus={(e) => e.currentTarget.select()}
                   />
-                  <button className="btn btn-primary" onClick={() => copy(justCreated.url || '')}>
-                    {copied === justCreated.url ? <CheckIcon size={15} /> : <CopyIcon size={15} />}
-                    {copied === justCreated.url ? 'Copied' : 'Copy'}
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => copy(shareDisplayUrl)}
+                  >
+                    {copied === shareDisplayUrl ? (
+                      <CheckIcon size={15} />
+                    ) : (
+                      <CopyIcon size={15} />
+                    )}
+                    {copied === shareDisplayUrl ? 'Copied' : 'Copy'}
                   </button>
                 </div>
-                <p className="field-help">This link opens the exact preview state shown above.</p>
+                <p className="field-help">
+                  This link opens the preview state shown above.
+                </p>
               </div>
               <div className="share-state-row">
                 <span className="status-dot active" />
                 <span>
-                  Active link · expires {formatDateTime(justCreated.expiresAt)} (
-                  {timeUntil(justCreated.expiresAt)})
+                  Active link · expires {formatDateTime(activeShare.expiresAt)}{' '}
+                  ({timeUntil(activeShare.expiresAt)})
                 </span>
               </div>
             </>
           )}
 
-          {!activeCurrentShare && !justCreated && (
+          {/* Create Link / Generate Additional Link Form */}
+          {(!activeShare || creatingNew) && (
             <>
               <div className="share-expiry-grid" style={{ marginTop: 14 }}>
                 <div className="field">
@@ -245,7 +576,10 @@ export function ShareModal({
                 </div>
                 {expiryChoice === 0 && (
                   <div className="field">
-                    <label className="field-label" htmlFor="share-expiry-custom">
+                    <label
+                      className="field-label"
+                      htmlFor="share-expiry-custom"
+                    >
                       Custom expiry
                     </label>
                     <input
@@ -264,31 +598,51 @@ export function ShareModal({
                 </p>
               )}
               <div className="share-actions">
-                <button className="btn btn-primary" onClick={create} disabled={creating || !current.variantId}>
-                  <LinkIcon size={15} /> {creating ? 'Creating link…' : 'Create link'}
+                <button
+                  className="btn btn-primary"
+                  onClick={create}
+                  disabled={creating || !selectedVariantId}
+                >
+                  <LinkIcon size={15} />{' '}
+                  {creating ? 'Creating link…' : 'Create link'}
                 </button>
+                {creatingNew && activeShare && (
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      setCreatingNew(false);
+                      setError(null);
+                    }}
+                  >
+                    Cancel
+                  </button>
+                )}
               </div>
             </>
           )}
 
-          {(activeCurrentShare || justCreated) && (
+          {activeShare && !creatingNew && (
             <div className="share-actions">
-              <button className="btn btn-secondary btn-sm" onClick={() => onViewComments((justCreated || activeCurrentShare)!.id)}>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => onViewComments(activeShare.id)}
+              >
                 View comments
               </button>
               <button
                 className="btn btn-secondary btn-sm"
                 onClick={() => {
+                  setCreatingNew(true);
                   setJustCreated(null);
                   setExpiryChoice(24);
                   setCustomExpiry('');
                 }}
               >
-                Create a new link for this state
+                + Generate another link for this section
               </button>
               <button
                 className="btn btn-danger-outline btn-sm"
-                onClick={() => setConfirmingRevoke((justCreated || activeCurrentShare)!.id)}
+                onClick={() => setConfirmingRevoke(activeShare.id)}
               >
                 Revoke
               </button>
@@ -298,12 +652,20 @@ export function ShareModal({
           {confirmingRevoke && (
             <div className="share-state-row" style={{ color: 'var(--danger)' }}>
               <WarningIcon size={15} />
-              <span>Revoke this link? Reviewers will lose access immediately.</span>
+              <span>
+                Revoke this link? Reviewers will lose access immediately.
+              </span>
               <span style={{ flex: 1 }} />
-              <button className="btn btn-sm btn-secondary" onClick={() => setConfirmingRevoke(null)}>
+              <button
+                className="btn btn-sm btn-secondary"
+                onClick={() => setConfirmingRevoke(null)}
+              >
                 Cancel
               </button>
-              <button className="btn btn-sm btn-danger-outline" onClick={() => revoke(confirmingRevoke)}>
+              <button
+                className="btn btn-sm btn-danger-outline"
+                onClick={() => revoke(confirmingRevoke)}
+              >
                 Confirm revoke
               </button>
             </div>
@@ -313,38 +675,113 @@ export function ShareModal({
         {/* All links for the project */}
         {shares.length > 0 && (
           <div className="modal-section">
-            <div className="modal-section-title">All links in this project</div>
+            <div
+              className="modal-section-title"
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <span>All links in this project ({shares.length})</span>
+            </div>
             <div className="all-shares">
-              {shares.map((s) => (
-                <div className="share-list-item" key={s.id}>
-                  <div className="grow">
-                    <b>
-                      {PLATFORMS[s.platform].label} · {contextLabel(s.platform, s.contextId)} ·{' '}
-                      {s.device === 'desktop' ? 'Desktop' : 'Mobile'}
-                    </b>
-                    <div className="share-list-meta truncate">
-                      {variantName(s.variantId)} ·{' '}
-                      {s.status === 'ACTIVE'
-                        ? `expires ${formatDateTime(s.expiresAt)} (${timeUntil(s.expiresAt)})`
-                        : s.status === 'EXPIRED'
-                          ? `expired ${formatDateTime(s.expiresAt)}`
-                          : `revoked ${formatDateTime(s.revokedAt || s.createdAt)}`}
+              {shares.map((s) => {
+                const isSelected = activeShare?.id === s.id;
+                const linkUrl = toAbsoluteUrl(s.url);
+                return (
+                  <div
+                    className="share-list-item"
+                    key={s.id}
+                    style={{
+                      cursor: 'pointer',
+                      outline: isSelected ? '2px solid var(--brand)' : 'none',
+                      transition: 'outline 0.15s ease',
+                    }}
+                    onClick={() => {
+                      setSelectedPlatform(s.platform);
+                      setSelectedContext(s.contextId);
+                      setSelectedDevice(s.device);
+                      setSelectedVariantId(s.variantId);
+                      setSelectedShareId(s.id);
+                      setJustCreated(null);
+                      setCreatingNew(false);
+                    }}
+                  >
+                    <div className="grow">
+                      <b>
+                        {PLATFORMS[s.platform].label} ·{' '}
+                        {contextLabel(s.platform, s.contextId)} ·{' '}
+                        {s.device === 'desktop' ? 'Desktop' : 'Mobile'}
+                      </b>
+                      <div className="share-list-meta truncate">
+                        {variantName(s.variantId)} ·{' '}
+                        {s.status === 'ACTIVE'
+                          ? `expires ${formatDateTime(s.expiresAt)} (${timeUntil(s.expiresAt)})`
+                          : s.status === 'EXPIRED'
+                            ? `expired ${formatDateTime(s.expiresAt)}`
+                            : `revoked ${formatDateTime(s.revokedAt || s.createdAt)}`}
+                      </div>
                     </div>
-                  </div>
-                  <StatusBadge status={s.status} />
-                  <button className="btn-icon" aria-label="View comments" onClick={() => onViewComments(s.id)}>
-                    <CommentsGlyph />
-                    {s.commentCount ? (
-                      <span className="comment-badge">{s.commentCount}</span>
-                    ) : null}
-                  </button>
-                  {s.status === 'ACTIVE' && (
-                    <button className="btn-icon" aria-label={`Revoke ${PLATFORMS[s.platform].label} link`} onClick={() => setConfirmingRevoke(s.id)}>
-                      <RevokeGlyph />
+                    <StatusBadge status={s.status} />
+
+                    {/* Dedicated Copy Button for Every Active Link */}
+                    {linkUrl && s.status === 'ACTIVE' && (
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        style={{
+                          padding: '4px 10px',
+                          fontSize: 12,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          copy(linkUrl);
+                        }}
+                      >
+                        {copied === linkUrl ? (
+                          <CheckIcon size={12} />
+                        ) : (
+                          <CopyIcon size={12} />
+                        )}
+                        {copied === linkUrl ? 'Copied' : 'Copy'}
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      className="btn-icon"
+                      aria-label="View comments"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onViewComments(s.id);
+                      }}
+                    >
+                      <CommentsGlyph />
+                      {s.commentCount ? (
+                        <span className="comment-badge">{s.commentCount}</span>
+                      ) : null}
                     </button>
-                  )}
-                </div>
-              ))}
+
+                    {s.status === 'ACTIVE' && (
+                      <button
+                        type="button"
+                        className="btn-icon"
+                        aria-label={`Revoke ${PLATFORMS[s.platform].label} link`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setConfirmingRevoke(s.id);
+                        }}
+                      >
+                        <RevokeGlyph />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -355,7 +792,17 @@ export function ShareModal({
 
 function CommentsGlyph() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
       <path d="M21 12a8 8 0 0 1-8 8H4l2.5-2.9A8 8 0 1 1 21 12Z" />
     </svg>
   );
@@ -363,9 +810,19 @@ function CommentsGlyph() {
 
 function RevokeGlyph() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
       <circle cx="12" cy="12" r="9" />
-      <path d="m5.7 5.7 12.6 12.6" />
+      <line x1="5.7" y1="5.7" x2="18.3" y2="18.3" />
     </svg>
   );
 }
