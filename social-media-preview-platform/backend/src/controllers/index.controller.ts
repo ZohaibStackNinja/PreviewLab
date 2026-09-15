@@ -48,7 +48,8 @@ export async function createProject(req: Request, res: Response): Promise<void> 
 
 export async function getProjectDetail(req: Request, res: Response): Promise<void> {
   const { sessionId } = await ensureSession(req, res);
-  ok(res, await projectService.getProjectDetail(req.params.projectId, sessionId));
+  const origin = env.allowedOrigins[0] || `${req.protocol}://${req.get("host")}`;
+  ok(res, await projectService.getProjectDetail(req.params.projectId, sessionId, origin));
 }
 
 export async function updateProject(req: Request, res: Response): Promise<void> {
@@ -184,7 +185,8 @@ export async function getAsset(req: Request, res: Response): Promise<void> {
 
 export async function listShares(req: Request, res: Response): Promise<void> {
   const { sessionId } = await ensureSession(req, res);
-  ok(res, { shares: await shareService.listShares(req.params.projectId, sessionId) });
+  const origin = env.allowedOrigins[0] || `${req.protocol}://${req.get("host")}`;
+  ok(res, { shares: await shareService.listShares(req.params.projectId, sessionId, origin) });
 }
 
 export async function createShare(req: Request, res: Response): Promise<void> {
@@ -197,12 +199,14 @@ export async function createShare(req: Request, res: Response): Promise<void> {
 
 export async function getShareDetail(req: Request, res: Response): Promise<void> {
   const { sessionId } = await ensureSession(req, res);
-  ok(res, await shareService.getShareDetail(req.params.shareId, sessionId));
+  const origin = env.allowedOrigins[0] || `${req.protocol}://${req.get("host")}`;
+  ok(res, await shareService.getShareDetail(req.params.shareId, sessionId, origin));
 }
 
 export async function listOwnerComments(req: Request, res: Response): Promise<void> {
   const { sessionId } = await ensureSession(req, res);
-  ok(res, await shareService.getShareDetail(req.params.shareId, sessionId));
+  const origin = env.allowedOrigins[0] || `${req.protocol}://${req.get("host")}`;
+  ok(res, await shareService.getShareDetail(req.params.shareId, sessionId, origin));
 }
 
 export async function createOwnerComment(req: Request, res: Response): Promise<void> {
@@ -218,7 +222,8 @@ export async function createOwnerComment(req: Request, res: Response): Promise<v
 
 export async function revokeShare(req: Request, res: Response): Promise<void> {
   const { sessionId } = await ensureSession(req, res);
-  ok(res, { share: await shareService.revokeShare(req.params.shareId, sessionId) });
+  const origin = env.allowedOrigins[0] || `${req.protocol}://${req.get("host")}`;
+  ok(res, { share: await shareService.revokeShare(req.params.shareId, sessionId, origin) });
 }
 
 /* ---------- public token access (anonymous reviewers) ---------- */
