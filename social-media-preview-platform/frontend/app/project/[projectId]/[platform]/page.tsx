@@ -29,7 +29,8 @@ export default async function PlatformWorkspacePage({
   params,
   searchParams,
 }: PageProps) {
-  const cookieHeader = cookies().toString();
+  const cookieList = cookies().getAll();
+  const cookieHeader = cookieList.map((c) => `${c.name}=${c.value}`).join('; ');
   let detail: {
     project: Project;
     variants: VariantView[];
