@@ -8,6 +8,7 @@ export interface ShareLinkDoc {
   contextId: string;
   device: "desktop" | "mobile";
   theme: "dark" | "light";
+  token?: string;
   tokenHash: string;
   expiresAt: Date;
   revokedAt: Date | null;
@@ -22,6 +23,7 @@ const shareLinkSchema = new Schema<ShareLinkDoc>(
     contextId: { type: String, required: true },
     device: { type: String, enum: ["desktop", "mobile"], required: true },
     theme: { type: String, enum: ["dark", "light"], default: "dark" },
+    token: { type: String, required: false },
     tokenHash: { type: String, required: true, unique: true, index: true },
     expiresAt: { type: Date, required: true },
     revokedAt: { type: Date, default: null },
