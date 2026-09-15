@@ -145,6 +145,82 @@ describe("shares + comments", () => {
       .set("Cookie", cookie)
       .expect(200);
     expect(detail.body.data.shares[0].status).toBe("ACTIVE");
+    expect(detail.body.data.shares[0].url).toContain(`/share/${rawToken}`);
+  });
+
+  it("reuses existing active share link instead of generating a new token", async () => {
+    const res = await request(app)
+      .post(`/api/projects/${projectId}/shares`)
+      .set("Cookie", cookie)
+      .send({ variantId, platform: "linkedin", device: "desktop" })
+      .expect(200);
+    expect(res.body.data.share.url).toContain(`/share/${rawToken}`);
+
+    // Project detail returns the exact persistent URL
+    const detail = await request(app)
+      .get(`/api/projects/${projectId}`)
+      .set("Cookie", cookie)
+      .expect(200);
+    expect(detail.body.data.shares[0].url).toContain(`/share/${rawToken}`);
+  });
+
+  it("revokes existing link and creates a new one when forceNew is true", async () => {
+    const res = await request(app)
+      .post(`/api/projects/${projectId}/shares`)
+      .set("Cookie", cookie)
+      .send({ variantId, platform: "linkedin", device: "desktop", forceNew: true })
+      .expect(200);
+    const newToken = res.body.data.share.url.split("/share/")[1];
+    expect(newToken).not.toEqual(rawToken);
+    expect(res.body.data.share.status).toBe("ACTIVE");
+
+    // Old link is now revoked
+    const oldResolved = await request(app).get(`/api/shares/resolved/${rawToken}`).expect(410);
+    expect(oldResolved.body.error.message).toContain("no longer available");
+
+    // New link is active
+    const newResolved = await request(app).get(`/api/shares/resolved/${newToken}`).expect(200);
+    expect(newResolved.body.data.share.status).toBe("ACTIVE");
+
+    rawToken = newToken;
+  });
+
+  it("supports multiple active links across different sections and within same section", async () => {
+    // Create a link for YouTube Watch Desktop (different section)
+    const ytRes = await request(app)
+      .post(`/api/projects/${projectId}/shares`)
+      .set("Cookie", cookie)
+      .send({ variantId, platform: "youtube", device: "desktop", context: "watch" })
+      .expect(200);
+    const ytToken = ytRes.body.data.share.url.split("/share/")[1];
+    expect(ytToken).not.toEqual(rawToken);
+
+    // Both LinkedIn and YouTube links are active
+    const lnResolved = await request(app).get(`/api/shares/resolved/${rawToken}`).expect(200);
+    const ytResolved = await request(app).get(`/api/shares/resolved/${ytToken}`).expect(200);
+    expect(lnResolved.body.data.share.status).toBe("ACTIVE");
+    expect(ytResolved.body.data.share.status).toBe("ACTIVE");
+
+    // Create an additional active link for YouTube with allowMultiple: true
+    const yt2Res = await request(app)
+      .post(`/api/projects/${projectId}/shares`)
+      .set("Cookie", cookie)
+      .send({
+        variantId,
+        platform: "youtube",
+        device: "desktop",
+        context: "watch",
+        allowMultiple: true,
+      })
+      .expect(200);
+    const yt2Token = yt2Res.body.data.share.url.split("/share/")[1];
+    expect(yt2Token).not.toEqual(ytToken);
+
+    // Both YouTube links remain active concurrently!
+    const yt1After = await request(app).get(`/api/shares/resolved/${ytToken}`).expect(200);
+    const yt2After = await request(app).get(`/api/shares/resolved/${yt2Token}`).expect(200);
+    expect(yt1After.body.data.share.status).toBe("ACTIVE");
+    expect(yt2After.body.data.share.status).toBe("ACTIVE");
   });
 
   it("resolves an active token into the full public payload", async () => {
@@ -196,15 +272,19 @@ describe("shares + comments", () => {
       .get(`/api/projects/${projectId}`)
       .set("Cookie", cookie)
       .expect(200);
-    const shareId = detail.body.data.shares[0].id;
+    const targetShare = detail.body.data.shares.find((s: { url: string | null }) =>
+      s.url?.includes(rawToken),
+    );
+    const shareId = targetShare.id;
     await request(app).post(`/api/shares/${shareId}/revoke`).set("Cookie", cookie).expect(200);
-    expect(detail.body.data.shares[0].status).toBe("ACTIVE"); // pre-revoke snapshot
+    expect(targetShare.status).toBe("ACTIVE"); // pre-revoke snapshot
 
     const after = await request(app)
       .get(`/api/projects/${projectId}`)
       .set("Cookie", cookie)
       .expect(200);
-    expect(after.body.data.shares[0].status).toBe("REVOKED");
+    const afterShare = after.body.data.shares.find((s: { id: string }) => s.id === shareId);
+    expect(afterShare.status).toBe("REVOKED");
 
     const res = await request(app).get(`/api/shares/resolved/${rawToken}`).expect(410);
     expect(res.body.error.message).toContain("no longer available");
@@ -246,7 +326,10 @@ describe("shares + comments", () => {
       .get(`/api/projects/${projectId}`)
       .set("Cookie", cookie)
       .expect(200);
-    return { id: detail.body.data.shares[0].id };
+    const target =
+      detail.body.data.shares.find((s: { url: string | null }) => s.url?.includes(rawToken)) ||
+      detail.body.data.shares[0];
+    return { id: target.id };
   }
 });
 
