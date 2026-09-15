@@ -7,10 +7,23 @@ export const SESSION_COOKIE = "smp_session";
 export const SESSION_TTL_MS = env.SESSION_TTL_DAYS * 24 * 60 * 60 * 1000;
 
 export function sessionCookieOptions() {
+  const isSecure = env.COOKIE_SECURE === "true" || env.isProd;
+  const requestedSameSite = (
+    env.COOKIE_SAMESITE ||
+    process.env.COOKIE_SAMESITE ||
+    "lax"
+  ).toLowerCase();
+  const sameSite =
+    isSecure && requestedSameSite === "none"
+      ? ("none" as const)
+      : requestedSameSite === "strict"
+        ? ("strict" as const)
+        : ("lax" as const);
+
   return {
     httpOnly: true,
-    sameSite: process.env.COOKIE_SAMESITE === "none" ? ("none" as const) : ("lax" as const),
-    secure: env.COOKIE_SECURE === "true" || env.isProd,
+    sameSite,
+    secure: isSecure,
     path: "/",
     maxAge: SESSION_TTL_MS,
   };
