@@ -9,8 +9,11 @@ import type { CropAdjustment, PreviewBrand } from '@/lib/types';
  * (object-position moves the crop origin; scale zooms inside the clipped
  * container). Returns undefined when the adjustment is neutral.
  */
-export function creativeImgStyle(adj?: CropAdjustment): React.CSSProperties | undefined {
-  if (!adj || (adj.x === 0 && adj.y === 0 && (adj.scale === 1 || !adj.scale))) return undefined;
+export function creativeImgStyle(
+  adj?: CropAdjustment,
+): React.CSSProperties | undefined {
+  if (!adj || (adj.x === 0 && adj.y === 0 && (adj.scale === 1 || !adj.scale)))
+    return undefined;
   return {
     objectPosition: `${50 + adj.x}% ${50 + adj.y}%`,
     transform: adj.scale !== 1 ? `scale(${adj.scale})` : undefined,
@@ -23,7 +26,13 @@ export function initials(name: string): string {
 }
 
 export function slugHandle(name: string): string {
-  return '@' + name.toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 24);
+  return (
+    '@' +
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '')
+      .slice(0, 24)
+  );
 }
 
 /** Platform avatar: the uploaded brand logo when present, else an initial. */
@@ -50,13 +59,24 @@ export function BrandAvatar({
     return (
       <span
         className={className}
-        style={{ ...style, borderRadius: radius ?? '50%', overflow: 'hidden', display: 'inline-flex', background: 'var(--neutral-soft)' }}
+        style={{
+          ...style,
+          borderRadius: radius ?? '50%',
+          overflow: 'hidden',
+          display: 'inline-flex',
+          background: 'var(--neutral-soft)',
+        }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={brand.logoUrl}
           alt=""
-          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            display: 'block',
+          }}
         />
       </span>
     );
@@ -150,7 +170,12 @@ export function BrandBanner({
         <img
           src={brand.bannerUrl}
           alt={imgAlt || 'Uploaded brand banner'}
-          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            display: 'block',
+          }}
         />
       </div>
     );
@@ -159,7 +184,8 @@ export function BrandBanner({
     <div
       className={className}
       style={{
-        background: 'linear-gradient(112deg, #0a7f7b 0%, #0abab5 46%, #084c4a 100%)',
+        background:
+          'linear-gradient(112deg, #0a7f7b 0%, #0abab5 46%, #084c4a 100%)',
         color: '#fff',
         position: 'relative',
         overflow: 'hidden',
@@ -238,18 +264,121 @@ export function BrandBanner({
 
 /* ---------- per-platform dummy content ---------- */
 
-export const YT_DUMMY_VIDEOS = [
-  { title: 'Behind the scenes of our latest shoot', meta: '48K views · 1 week ago', dur: '12:04' },
-  { title: 'How we plan a campaign in 3 steps', meta: '112K views · 3 weeks ago', dur: '8:31' },
-  { title: 'Client results after the first 60 days', meta: '9.4K views · 1 month ago', dur: '5:17' },
-  { title: 'Studio tour + the gear we actually use', meta: '231K views · 2 months ago', dur: '15:49' },
-  { title: 'Quick tip: thumbnails that get clicks', meta: '66K views · 3 months ago', dur: '4:02' },
-  { title: 'Answering your top 10 questions', meta: '18K views · 4 months ago', dur: '9:58' },
+export interface YtDummyVideo {
+  title: string;
+  channel?: string;
+  meta: string;
+  dur: string;
+}
+
+export const YT_DUMMY_VIDEOS: YtDummyVideo[] = [
+  {
+    title: 'Behind the scenes of our latest shoot',
+    channel: 'Creative Studio Pro',
+    meta: '48K views · 1 week ago',
+    dur: '12:04',
+  },
+  {
+    title: 'How we plan a high-converting campaign in 3 steps',
+    channel: 'Brand Strategy Lab',
+    meta: '112K views · 3 weeks ago',
+    dur: '8:31',
+  },
+  {
+    title: 'Client results after the first 60 days of launch',
+    channel: 'Growth Weekly',
+    meta: '9.4K views · 1 month ago',
+    dur: '5:17',
+  },
+  {
+    title: 'Studio tour + the production gear we actually use',
+    channel: 'Visual Cinema Tech',
+    meta: '231K views · 2 months ago',
+    dur: '15:49',
+  },
+  {
+    title: 'Quick tip: video hooks and thumbnails that get clicks',
+    channel: 'Media Masterclass',
+    meta: '66K views · 3 months ago',
+    dur: '4:02',
+  },
+  {
+    title: 'Creative Direction Q&A: answering your top 10 questions',
+    channel: 'Design Matters',
+    meta: '18K views · 4 months ago',
+    dur: '9:58',
+  },
+  {
+    title: 'Color grading and pacing breakdown for commercial ads',
+    channel: 'Colorist Academy',
+    meta: '74K views · 5 months ago',
+    dur: '14:20',
+  },
+];
+
+export interface YtDummyComment {
+  id: string;
+  author: string;
+  handle: string;
+  avatarColor: string;
+  time: string;
+  text: string;
+  likes: string;
+  isPinned?: boolean;
+}
+
+export const YT_DUMMY_COMMENTS: YtDummyComment[] = [
+  {
+    id: 'c1',
+    author: 'Brand Team',
+    handle: '@creator',
+    avatarColor: '#0ABAB5',
+    time: '2 hours ago',
+    text: 'Thanks for checking out the launch cut! Drop your thoughts on the creative direction and ending call-to-action below.',
+    likes: '142',
+    isPinned: true,
+  },
+  {
+    id: 'c2',
+    author: 'Elena Rostova',
+    handle: '@elena_designs',
+    avatarColor: '#7c3aed',
+    time: '1 hour ago',
+    text: 'The color grading in the opening sequence is incredible. It sets the premium tone right away.',
+    likes: '38',
+  },
+  {
+    id: 'c3',
+    author: 'Marcus Vance',
+    handle: '@marcus_vfx',
+    avatarColor: '#2563eb',
+    time: '45 minutes ago',
+    text: 'That transition at 0:14 was super smooth. Much stronger visual impact than the previous draft!',
+    likes: '19',
+  },
+  {
+    id: 'c4',
+    author: 'Aria Chen',
+    handle: '@ariachen_creative',
+    avatarColor: '#db2777',
+    time: '20 minutes ago',
+    text: 'Clean messaging and the call-to-action is crystal clear. Ready to publish in my opinion.',
+    likes: '7',
+  },
 ];
 
 export const IG_DUMMY_POSTS = [
-  { likes: '2,314', caption: 'Concept boards for the autumn drop — which direction do you like?', time: '1d' },
-  { likes: '987', caption: 'Behind the scenes with the design team today', time: '4d' },
+  {
+    likes: '2,314',
+    caption:
+      'Concept boards for the autumn drop — which direction do you like?',
+    time: '1d',
+  },
+  {
+    likes: '987',
+    caption: 'Behind the scenes with the design team today',
+    time: '4d',
+  },
 ];
 
 export const IG_DUMMY_TILES = 8; // grid tiles after the uploaded creative
