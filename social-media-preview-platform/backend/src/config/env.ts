@@ -20,9 +20,8 @@ const envSchema = z.object({
   CLOUDINARY_API_KEY: z.string().optional(),
   CLOUDINARY_API_SECRET: z.string().optional(),
   LOCAL_UPLOAD_DIR: z.string().default("./data/uploads"),
-  COOKIE_SECURE: z
-    .enum(["true", "false"])
-    .default("false"),
+  COOKIE_SECURE: z.enum(["true", "false"]).default("false"),
+  COOKIE_SAMESITE: z.enum(["lax", "strict", "none"]).default("lax"),
   MAX_UPLOAD_MB: z.coerce.number().int().positive().default(10),
 });
 
