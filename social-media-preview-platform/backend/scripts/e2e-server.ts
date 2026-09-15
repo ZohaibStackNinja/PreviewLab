@@ -6,11 +6,18 @@ process.env.LOCAL_UPLOAD_DIR = process.env.LOCAL_UPLOAD_DIR || "./data/e2e-uploa
 process.env.SESSION_SECRET = process.env.SESSION_SECRET || "e2e-session-secret-0123456789";
 process.env.SHARE_TOKEN_SECRET = process.env.SHARE_TOKEN_SECRET || "e2e-share-secret-0123456789";
 process.env.COOKIE_SECURE = "false";
+process.env.COOKIE_SAMESITE = "lax";
 
 async function main(): Promise<void> {
-  const { MongoMemoryServer } = await import("mongodb-memory-server");
-  const mongod = await MongoMemoryServer.create();
-  process.env.MONGODB_URI = mongod.getUri("preview-lab-e2e");
+  const dotenv = await import("dotenv");
+  dotenv.config();
+
+  let mongod: any = null;
+  if (!process.env.MONGODB_URI) {
+    const { MongoMemoryServer } = await import("mongodb-memory-server");
+    mongod = await MongoMemoryServer.create();
+    process.env.MONGODB_URI = mongod.getUri("preview-lab-e2e");
+  }
 
   const [{ createApp }, { connectDatabase, disconnectDatabase }] = await Promise.all([
     import("../src/app.js"),
@@ -27,7 +34,7 @@ async function main(): Promise<void> {
   const shutdown = async () => {
     server.close();
     await disconnectDatabase();
-    await mongod.stop();
+    if (mongod) await mongod.stop();
   };
   process.once("SIGINT", () => void shutdown().finally(() => process.exit(0)));
   process.once("SIGTERM", () => void shutdown().finally(() => process.exit(0)));
