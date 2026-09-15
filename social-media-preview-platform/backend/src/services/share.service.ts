@@ -49,6 +49,8 @@ export interface CreateShareDto {
   theme?: "dark" | "light";
   expiresAt?: string;
   expiresInHours?: number;
+  forceNew?: boolean;
+  allowMultiple?: boolean;
 }
 
 /** POST create share — snapshots the exact preview state (SHR-001..008). */
@@ -59,6 +61,8 @@ export async function createShare(
   dto: CreateShareDto,
 ): Promise<ShareView> {
   await assertProjectOwnership(projectId, sessionId);
+
+  const now = new Date();
 
   // Joint query: the variant must belong to a project owned by this session
   // (BR-002) — foreign and missing variants are indistinguishable (SEC-008).
@@ -97,14 +101,54 @@ export async function createShare(
     );
   }
 
+  // Section definition: scoped to (projectId + variantId + platform + contextId + device)
+  const sectionQuery = {
+    projectId,
+    variantId,
+    platform: dto.platform,
+    contextId,
+    device: dto.device,
+  };
+
+  // If active share link exists for this exact section, reuse it unless creating a new/additional one.
+  if (!dto.forceNew && !dto.allowMultiple) {
+    const existingActive = await ShareLink.findOne({
+      ...sectionQuery,
+      revokedAt: null,
+      expiresAt: { $gt: now },
+    }).sort({ createdAt: -1 });
+
+    if (existingActive) {
+      if (!existingActive.token) {
+        const generatedToken = generateToken(24);
+        existingActive.token = generatedToken;
+        existingActive.tokenHash = hashShareToken(generatedToken);
+        await ShareLink.updateOne(
+          { _id: existingActive._id },
+          { $set: { token: generatedToken, tokenHash: existingActive.tokenHash } },
+        );
+      }
+      return toShareView(existingActive, origin);
+    }
+  }
+
+  // If forceNew was requested, revoke only previous active links for THIS specific section.
+  // Other sections are never revoked.
+  if (dto.forceNew) {
+    await ShareLink.updateMany(
+      { ...sectionQuery, revokedAt: null, expiresAt: { $gt: now } },
+      { $set: { revokedAt: now } },
+    );
+  }
+
   // SHR-002/003/004: default 24h, or a strictly future owner-chosen expiry.
   let expiresAt: Date;
   if (dto.expiresAt) {
     expiresAt = new Date(dto.expiresAt);
   } else {
-    expiresAt = new Date(Date.now() + (dto.expiresInHours ?? DEFAULT_EXPIRY_HOURS) * 3600_000);
+    expiresAt = new Date(now.getTime() + (dto.expiresInHours ?? DEFAULT_EXPIRY_HOURS) * 3600_000);
   }
-  if (expiresAt.getTime() <= Date.now()) {
+  if (expiresAt.getTime() <= now.getTime()) {
     throw new ApiError(400, "EXPIRY_IN_PAST", "The expiry must be later than the current time.");
   }
 
@@ -116,20 +160,25 @@ export async function createShare(
     contextId,
     device: dto.device,
     theme: dto.theme || "dark",
+    token,
     tokenHash: hashShareToken(token),
     expiresAt,
     revokedAt: null,
-    createdAt: new Date(),
+    createdAt: now,
   });
 
   return toShareView(share, `${origin}/share/${token}`);
 }
 
 /** GET list — owner list of all links for a project. */
-export async function listShares(projectId: string, sessionId: string): Promise<ShareView[]> {
+export async function listShares(
+  projectId: string,
+  sessionId: string,
+  origin?: string,
+): Promise<ShareView[]> {
   await assertProjectOwnership(projectId, sessionId);
   const shares = await ShareLink.find({ projectId }).sort({ createdAt: -1 }).lean<ShareLinkDoc[]>();
-  return shares.map((s) => toShareView(s));
+  return shares.map((s) => toShareView(s, origin));
 }
 
 export interface ShareDetailView {
@@ -138,13 +187,17 @@ export interface ShareDetailView {
 }
 
 /** GET detail — owner view of one link + its comments. */
-export async function getShareDetail(shareId: string, sessionId: string): Promise<ShareDetailView> {
+export async function getShareDetail(
+  shareId: string,
+  sessionId: string,
+  origin?: string,
+): Promise<ShareDetailView> {
   const share = await getOwnedShare(shareId, sessionId);
   const comments = await Comment.find({ shareId: share._id })
     .sort({ createdAt: 1 })
     .lean<CommentDoc[]>();
   return {
-    share: toShareView(share),
+    share: toShareView(share, origin),
     comments: publicComments(comments),
   };
 }
@@ -166,15 +219,19 @@ export async function createOwnerComment(
 }
 
 /** POST revoke — owner revokes an active link immediately (SHR-005, UC-09). */
-export async function revokeShare(shareId: string, sessionId: string): Promise<ShareView> {
+export async function revokeShare(
+  shareId: string,
+  sessionId: string,
+  origin?: string,
+): Promise<ShareView> {
   const share = await getOwnedShare(shareId, sessionId);
-  if (share.revokedAt) return toShareView(share);
+  if (share.revokedAt) return toShareView(share, origin);
   const updated = await ShareLink.findByIdAndUpdate(
     share._id,
     { $set: { revokedAt: new Date() } },
     { new: true },
   ).lean<ShareLinkDoc | null>();
-  return toShareView(updated as ShareLinkDoc);
+  return toShareView(updated as ShareLinkDoc, origin);
 }
 
 /* ---------- public token access (anonymous reviewers) ---------- */
