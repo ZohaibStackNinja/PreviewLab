@@ -130,7 +130,7 @@ export interface ShareView {
   expiresAt: string;
   revokedAt: string | null;
   createdAt: string;
-  url: string | null; // only set right after creation (raw token is shown once)
+  url: string | null;
   commentCount?: number;
 }
 
