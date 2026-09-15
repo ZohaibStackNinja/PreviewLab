@@ -17,7 +17,13 @@ export const createShareSchema = z
       device: z.enum(["desktop", "mobile"]),
       theme: z.enum(["dark", "light"]).optional().default("dark"),
       expiresAt: z.string().datetime({ offset: true }).optional(),
-      expiresInHours: z.coerce.number().positive().max(365 * 24).optional(),
+      expiresInHours: z.coerce
+        .number()
+        .positive()
+        .max(365 * 24)
+        .optional(),
+      forceNew: z.boolean().optional(),
+      allowMultiple: z.boolean().optional(),
     }),
   })
   .refine(
