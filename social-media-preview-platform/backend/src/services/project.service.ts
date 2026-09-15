@@ -5,6 +5,7 @@ import { Variant, VariantDoc } from "../models/variant.model";
 import { ShareLink, ShareLinkDoc } from "../models/shareLink.model";
 import { Comment } from "../models/comment.model";
 import { shareState } from "../utils/token";
+import { env } from "../config/env";
 import mongoose from "mongoose";
 
 /* ---------- response shapes ---------- */
@@ -101,7 +102,19 @@ export function toVariantView(variant: VariantDoc, asset: AssetDoc | null): Vari
   };
 }
 
-export function toShareView(share: ShareLinkDoc, url?: string, commentCount?: number): ShareView {
+export function toShareView(
+  share: ShareLinkDoc,
+  originOrUrl?: string,
+  commentCount?: number,
+): ShareView {
+  let url: string | null = null;
+  if (originOrUrl && originOrUrl.includes("/share/")) {
+    url = originOrUrl;
+  } else if (share.token) {
+    const origin = originOrUrl || env.allowedOrigins[0] || "";
+    url = origin ? `${origin}/share/${share.token}` : `/share/${share.token}`;
+  }
+
   return {
     id: share._id.toString(),
     projectId: share.projectId.toString(),
@@ -114,7 +127,7 @@ export function toShareView(share: ShareLinkDoc, url?: string, commentCount?: nu
     expiresAt: share.expiresAt.toISOString(),
     revokedAt: share.revokedAt ? share.revokedAt.toISOString() : null,
     createdAt: share.createdAt.toISOString(),
-    url: url ?? null,
+    url,
     commentCount,
   };
 }
@@ -285,6 +298,7 @@ export async function createProject(
 export async function getProjectDetail(
   projectId: string,
   sessionId: string,
+  origin?: string,
 ): Promise<{
   project: ProjectSummaryView;
   variants: VariantView[];
@@ -346,9 +360,7 @@ export async function getProjectDetail(
   return {
     project: projectView,
     variants: variants.map((v) => toVariantView(v, assetById.get(v.assetId.toString()) || null)),
-    shares: shares.map((s) =>
-      toShareView(s, undefined, countsByShareId.get(s._id.toString()) || 0),
-    ),
+    shares: shares.map((s) => toShareView(s, origin, countsByShareId.get(s._id.toString()) || 0)),
   };
 }
 
